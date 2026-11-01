@@ -1,0 +1,33 @@
+{
+  "name": "eaglan-host",
+  "version": "1.0.0",
+  "description": "Headless Eaglercraft (EaglercraftX 1.8 u53) World LAN host: runs the game's own integrated server and native World LAN relay/WebRTC hosting in Node.js, with a web UI. No browser, game client or GPU on the host.",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "bin": {
+    "eaglan-host": "cli.js"
+  },
+  "scripts": {
+    "ui": "node cli.js ui",
+    "start": "node cli.js ui",
+    "test": "node --test test/multi-relay.test.js test/redundant.test.js test/game-patches.test.js test/pregen.test.js test/pregen-step.test.js test/autosave.test.js test/multicore.test.js test/multicore-daemon.test.js test/terrain.test.js test/terrain-daemon.test.js test/speedups.test.js test/entities-daemon.test.js test/regions.test.js test/regions-daemon.test.js test/regions-world.test.js test/regions-play.test.js test/game-stats.test.js test/game-rules.test.js test/console.test.js test/daemon-relays.test.js test/ui-log-viewer.test.js test/options.test.js test/world-admin.test.js test/mob-caps.test.js test/sleep.test.js test/donation.test.js test/regions-pregen.test.js test/harness-equivalence.test.js test/deco-ahead.test.js",
+    "test:relays": "node --test test/multi-relay.test.js",
+    "test:smoke": "node test/worker-smoke.js",
+    "test:service": "node test/service-test.js",
+    "test:join": "node test/join-test.js",
+    "test:ui": "node --test test/ui-log-viewer.test.js",
+    "bench": "node test/bench/load.js",
+    "netcheck": "node tools/netcheck.js",
+    "test:netlab": "node test/netlab/bench.js --scenario lan,cn-typical,cn-lossy --config default --duration 30"
+  },
+  "dependencies": {
+    "node-datachannel": "^0.32.3",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^24.43.1"
+  }
+}

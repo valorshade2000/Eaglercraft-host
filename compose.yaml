@@ -1,0 +1,25 @@
+# docker compose up -d --build
+# UI: http://127.0.0.1:8090/   Worlds, config and logs persist in the "eaglan-data" volume.
+services:
+  eaglan-host:
+    build: .
+    image: eaglan-host:latest
+    init: true                  # reaps the detached host process
+    restart: unless-stopped
+    stop_grace_period: 90s      # time for the graceful world save on `docker compose down`
+    # Host networking (Linux) gives WebRTC real host ICE candidates, so players on the
+    # same LAN connect directly. With it, the UI binds to localhost only.
+    network_mode: host
+    environment:
+      BIND: 127.0.0.1
+      PORT: "8090"
+      EAGLAN_AUTOSTART: last    # resume the last hosted world on boot; or a world folder name
+    volumes:
+      - eaglan-data:/data
+    # Without host networking (e.g. Docker Desktop), remove network_mode/BIND above and use:
+    # ports:
+    #   - "127.0.0.1:8090:8090"
+    # WebRTC still works through the relay's STUN/TURN (outbound UDP; TURN over TCP/443).
+
+volumes:
+  eaglan-data:
