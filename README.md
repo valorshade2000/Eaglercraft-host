@@ -1,15 +1,55 @@
 # eaglan-host: headless Eaglercraft World LAN host
+
 EaglercraftX 1.8 · native World LAN (relay + WebRTC) · no client, no GPU
+
+**Host an EaglercraftX 1.8 world on a server, around the clock, with the game's own World LAN ("Shared World").**
 
 This project hosts an Eaglercraft world over the game's **own World LAN ("Shared World")** feature as a background process on a server. It registers the world on **several relays at once**, so it can be joined through any of them. Players join with the normal, unmodified client: **Multiplayer → Direct Connect → Join Shared World → code**.
 
 It does not use EaglerXServer, Paper/Spigot, BungeeCord or Velocity. The Minecraft server that runs is the game's own integrated server.
 
-- **Fully headless and CPU-only.** The host is a plain Node.js process: the game's server logic in a worker thread, relay/WebRTC networking and SQLite storage. It has no GUI, display server, browser, rendering, GPU or graphics library. Everything can be done from the command line; the web page is optional.
+> ❤️ **Like this project?** You can support it with a donation: see [Support this project](#support-this-project).
+
+## Features
+
+- **Headless and CPU-only:** plain Node.js, with no display, browser, rendering or GPU. Everything can be done from the command line; the web page is optional.
+- **One world, many relays:** the world is registered on several relays at once, each with its own join code. A relay that fails is retried on its own while the others keep working, and the players in the world stay connected.
+- **Web page** (optional, local only): status and join codes, the players with their round-trip time, a server console with OP, settings, Game Rules, the Option Manual, worlds (create, import, export, rename, delete, restore), pre-generation and the logs.
+- **Corrections to the game,** made in memory (the game files stay unchanged): the LAN game mode on join, animals that never respawned (the mob caps), entities not shown after a join or a teleport, and Minecraft 1.17's game rule `playersSleepingPercentage`.
+- **Less lag, measured:** world pre-generation, the autosave spread over ticks, speedups on the game thread, a multi-core mode, terrain threads, network processes, and regions on several cores (experimental).
+- **Network:** each player's round-trip time, an opt-in mode that sends small packets twice for players on lossy routes, and route checks from real probes around the world.
+- **Donation message** (off by default): asks players for support in the in-game chat when the server lags, and on the players' pages.
+- **Safe with worlds:** nothing deletes or overwrites a world, and a deleted world can be restored.
+- **Runs as a service:** systemd units and Docker files are included; the last world resumes at boot and is saved on stop.
+
+## Requirements
+
+- **Node.js ≥ 22.13** (for the built-in `node:sqlite`). The npm dependencies are `ws` and `node-datachannel` (WebRTC).
+- **A Linux server** (x64, arm64 or arm; glibc ≥ 2.30 or musl) with outbound UDP; no inbound ports are needed. So far it has been tested on Windows 10 only (see [Limitations](#limitations)).
 - **Game version:** EaglercraftX 1.8 **u53** (lax1dude), the official build linked from eaglercraft.com. The web build `u53_web.zip` is vendored in `vendor/eaglercraftx-1.8-u53/`:
   - `u53_web.zip` sha256 `843095ac…722c801`
   - `classes.js` sha256 `d8808775…bcc89e`
-- **Requirements:** Node.js ≥ 22.13 (for built-in `node:sqlite`). The npm dependencies are `ws` and `node-datachannel` (WebRTC).
+- **Nothing graphical:** the host is a plain Node.js process: the game's server logic in a worker thread, relay/WebRTC networking and SQLite storage. It has no GUI, display server, browser, rendering, GPU or graphics library.
+
+## Quick start
+
+In the project's folder (from the release zip or a copy of this repository):
+
+```bash
+bash install.sh                 # dependencies and a smoke test
+node cli.js create "My World"   # a new world, hosted in the background
+node cli.js status              # its join codes: one per relay
+```
+
+Players then join with **Multiplayer → Direct Connect → Join Shared World** and one of the codes. For the optional web page run `node cli.js ui` and open http://127.0.0.1:8090/ through an SSH tunnel (see [OP](#op)).
+
+## Contents
+
+- **Getting started:** [Install on a Linux server](#install-on-a-linux-server) · [Run, stop, configure, debug (CLI)](#run-stop-configure-debug-cli) · [Option Manual](#option-manual-web-page) · [Renaming and deleting worlds](#renaming-and-deleting-worlds)
+- **In the game:** [LAN game mode and cheats](#lan-game-mode-and-cheats) · [Console and OP](#console-and-op) · [Game Rules](#game-rules) · [Animals that never respawn: the mob caps](#animals-that-never-respawn-the-mob-caps-mobcaps-measured) · [Donation message](#donation-message-donation-off-by-default)
+- **Relays and network:** [Relays: one world, many relays](#relays-one-world-many-relays) · [How World LAN works](#how-world-lan-works-u53-source) · [What this project does](#what-this-project-does) · [Network notes](#network-notes) · [Network performance](#network-performance-players-far-from-the-server)
+- **Performance (measured):** [Lag with many players](#lag-with-many-players-measured) · [Multi-core mode](#multi-core-mode-multicore-opt-in-measured) · [Terrain threads](#terrain-threads-for-pre-generation-terrainthreads-opt-in-measured) · [Entity processing](#entity-processing-what-could-run-in-parallel-measured) · [Speedups on the game thread](#speedups-on-the-game-thread-speedups-on-by-default-measured) · [Multi-core game simulation](#multi-core-game-simulation-what-this-engine-allows-measured) · [Regions](#regions-regions-off-by-default-experimental) · [Chunk work in fresh terrain](#chunk-work-in-fresh-terrain-stage-5-measured) · [Many entities in one place](#many-entities-in-one-place-stage-6-measured) · [Stage 8](#stage-8-more-cores-exactly-the-same-game-measured) · [Where CPU and memory go](#where-cpu-and-memory-go-measured)
+- **The project:** [Limitations](#limitations) · [Tests](#tests) · [Support this project](#support-this-project)
 
 ## Install on a Linux server
 
@@ -17,6 +57,8 @@ It does not use EaglerXServer, Paper/Spigot, BungeeCord or Velocity. The Minecra
 unzip eaglan-host-linux.zip && cd eaglan-host
 ./install.sh                  # installs dependencies and runs a smoke test
 ```
+
+From a copy of this repository, run `bash install.sh` in its folder instead: the same steps.
 
 `node-datachannel` needs a native binary (glibc ≥ 2.30 or musl; x64/arm64/arm). Its installer normally downloads it from the package's release page. To install without that download, put the matching `node-datachannel-v0.32.3-napi-v8-linux-x64.tar.gz` (or `linuxmusl-…`, `…-arm64`) into `./prebuilds/` (or set `EAGLAN_PREBUILDS_DIR`). `install.sh` then unpacks it locally.
 
@@ -186,7 +228,7 @@ What stays as in 1.8.8: animals come back only where fewer than 10 per player ar
 
 The web page's **Donation message** section (below Settings) asks players to support the server: your message, a fundraising goal and the wallet address to send to. It is off until you switch it on and save. The host takes and tracks no payments: there is no donation service, and *Raised so far* is the number you type in.
 
-- **Fields:** the message (1-300 characters); the fundraising goal (0: no goal shown), raised so far, the currency (default `USDT`) and what the goal is for (default "a faster server"); the wallet address (20-100 letters and digits, default `TQqxb8H1QFghCMpV7eHMZEkBEoR8HNXSYC`) and its network (default `TRON (TRC-20)`); the lag threshold and the cooldown (below). Previews of the chat message and of the players' card follow what you type.
+- **Fields:** the message (1-300 characters); the fundraising goal (0: no goal shown), raised so far, the currency (default `USDT`) and what the goal is for (default "a faster server"); the wallet address (20-100 letters and digits; the default, `TQqxb8H1QFghCMpV7eHMZEkBEoR8HNXSYC`, is the project author's: put your own there to receive donations for your server) and its network (default `TRON (TRC-20)`); the lag threshold and the cooldown (below). Previews of the chat message and of the players' card follow what you type.
 - **Save** writes only `donation` in `data/config.json` and applies it to the running world at once; it stays across restarts. A value the host does not accept is refused with the reason, and nothing is written. **Defaults** puts the default values in the fields (Save keeps them).
 - **In the in-game chat**, to every player:
   - *when the server lags:* the game thread reports every 5 s how many ticks it ran. When it ran fewer per second than the **lag threshold** (default 15; 20 is full speed) over the last 30 s while players are on, the message goes out, beginning "The server is running slow right now.", and not again by itself within the **cooldown** (default 30 minutes). The log says `donation message sent to the chat: the server lags (12.4 game ticks per second, below 15); again at the earliest in 30 min`; the section shows the ticks per second now.
@@ -227,7 +269,7 @@ A player can use any code shown in `status` or the UI. A code only works on its 
 
 **One code for every relay is not possible.** Tested on all 5 working relays (2026-10-17): whatever the host sends in its handshake (`"abcde"`, `"name;1;abcde"`, …), each relay returns its own random code. The protocol has no way to request a code.
 
-**The shared-world list in the game is only for players on the host's own network.** A relay lists a world that isn't hidden only to players with the host's public IP address (the "LAN" in Open to LAN). There, the u53 client shows it under **Multiplayer** as *Shared World — <world name>*. Checked on relay.eaglercraft.net on 2026-10-20: a list request from the host's own address got 1 world, the host's test world, while eaglercraft.com showed 5 live worlds on that relay; the relay's `/health` also reports `"public": false`. So players on other networks never see a server's world in that list and need a code. (An earlier check that looked as if the list was public had its clients on the host's own machine.)
+**The shared-world list in the game is only for players on the host's own network.** A relay lists a world that isn't hidden only to players with the host's public IP address (the "LAN" in Open to LAN). There, the u53 client shows it under **Multiplayer** as *Shared World — (the world's name)*. Checked on relay.eaglercraft.net on 2026-10-20: a list request from the host's own address got 1 world, the host's test world, while eaglercraft.com showed 5 live worlds on that relay; the relay's `/health` also reports `"public": false`. So players on other networks never see a server's world in that list and need a code. (An earlier check that looked as if the list was public had its clients on the host's own machine.)
 
 **Same relay, two names:** `relay.webmc.xyz` and `relay.webmc.fun` are one backend. A code registered through one is listed and joinable through the other, so with both configured the world appears twice in that relay's list. Keeping one of them is enough.
 
@@ -885,7 +927,7 @@ Measured on 2026-10-28 on the build machine (12 CPUs, Windows 10, Node 24.19) wi
 
 ### Measured
 
-Measured on 2026-10-29 on the build machine (i3-10100: 6 cores, 12 logical CPUs; Windows 10, Node 24.19), while a job still loaded one chunk per tick also with nobody online (with several per tick, see "Pre-generating the world": 218 s without the thread, 170 s with it). Each run made a new world (seed 12345) and pre-generated 512 blocks round spawn (4,757 chunks) at the job's top rate, with nobody online; off and on in turns (`test/bench/load.js --make-template --pregen 512 --pregen-rate 50 [--terrain 1]`). Figures are the mean of the runs, with the range in brackets. Tick times are the game thread's per-minute figures while the job ran, averaged over the minutes. "Game thread time per chunk" is the job's own count: the time its loads took, generation and decoration included.
+Measured on 2026-10-29 on the build machine (6 cores, 12 logical CPUs; Windows 10, Node 24.19), while a job still loaded one chunk per tick also with nobody online (with several per tick, see "Pre-generating the world": 218 s without the thread, 170 s with it). Each run made a new world (seed 12345) and pre-generated 512 blocks round spawn (4,757 chunks) at the job's top rate, with nobody online; off and on in turns (`test/bench/load.js --make-template --pregen 512 --pregen-rate 50 [--terrain 1]`). Figures are the mean of the runs, with the range in brackets. Tick times are the game thread's per-minute figures while the job ran, averaged over the minutes. "Game thread time per chunk" is the job's own count: the time its loads took, generation and decoration included.
 
 **All 12 CPUs** (3 runs each):
 
@@ -1529,7 +1571,7 @@ exact version would redo a third or more of the updates in order after copying e
 
 ## Where CPU and memory go (measured)
 
-Measured on 2026-10-18 with an Windows 10 and Node 24.19, to answer whether rewriting the host in another language (e.g. Rust) would help. `node cli.js status` shows the same split on any server (`load:` line). "Busy" is event-loop utilization (time not idle); it can read a little higher than CPU time.
+Measured on 2026-10-18 on Windows 10 with Node 24.19, to answer whether rewriting the host in another language (e.g. Rust) would help. `node cli.js status` shows the same split on any server (`load:` line). "Busy" is event-loop utilization (time not idle); it can read a little higher than CPU time.
 
 **Real game, 3-4 unmodified u53 clients:**
 
@@ -1575,6 +1617,8 @@ That is about 35 µs per message on the network thread and about 0.9 MB per play
 
 ## Tests
 
+`npm test` runs the automated suite; the table lists it file by file, with the other test tools. The measurement scripts and reports named `measurements/...` in this README are kept apart from the project and are not included here.
+
 | Command | What it does |
 |---|---|
 | `node --test test/multi-relay.test.js` | 25 tests against local mock relays (`test/mock-relay.js`, no internet): simultaneous registration, joins via different relays into one host, startup failures, timeouts, half-open sockets, drops and recovery (the new code reported with the code it replaced), several failing relays, config validation, incompatible handshakes, no duplicate registrations or sessions, clean shutdown, live reconfigure, session summaries, per-player round-trip time, send twice (off by default, live switch, through the relay, unreachable relay port), the player's first message sent the instant the join completes (10 joins), the failed-join line, send twice on a server without a public address, send twice with a fixed UDP port (two players on one port; an unreachable port reported after three joins), the player limit (the refusal message, nothing opened in the world, a raised limit lets the next player in) |
@@ -1611,7 +1655,7 @@ That is about 35 µs per message on the network thread and about 0.9 MB per play
 | `node test/worker-smoke.js` | boots the native integrated server, creates a world, starts it and stops it |
 | `node test/service-test.js` | service mode (autostart, SIGTERM → graceful save, resume without duplicates), hermetic with a mock relay |
 | `node test/join-test.js <code>[,code2…] [n]` | unmodified u53 clients (headless Chrome, SwiftShader) join through the GUI. This is the *player* side and is not part of the server. `RELAYS_<i>` restricts client *i* to given relays; `CAPTURE_WS=1` records relay frames; `TRACE_DC=1` records the size and time of every game message; `ACTIONS="inv;cmd:/time set day;respawn;wait:5000;attack"` checks game mode (inventory screen), commands, respawn and hits after joining; `ACTIONS_<i>` gives client *i* its own list |
-| `node test/bench/load.js` | game-server load test (see "Lag with many players"): the real host on a local mock relay with N protocol-level players (`test/bench/bot.js`: they join through the relay over WebRTC like the u53 client, log in, answer keep-alives, move every tick and never into terrain they have not received). Reports tick times, "Can't keep up!" lines, how busy the game thread was, the whole process's CPU and memory, GC and chunk counts. `--make-template` creates (and with `--pregen` pre-generates) the world it starts from. `--multicore on|off`, `--workers <n>` (pool threads), `--host-cpus <n>` (the host on the first n CPUs only, as on a smaller server) and `--profile <file>` (a CPU profile of the game thread) are for "Multi-core mode". `--mobs <zombies>,<villagers>,<animals>` builds a mob arena above spawn (see "Entity processing: what could run in parallel"). `--speedups all\|none\|<list>` and `--speedups-verify` are for "Speedups on the game thread"; the result also counts the packets the players received, by type. `--host-cores <n>` (the host on n whole cores, the busy share of every CPU in the result), `--groups <g> --group-offset <blocks>` and `--group-center <dx,dz>` (players and arenas far apart), `--repeat-command`, `--regions on`, `--region-instances <n>` and `--rejoin <s>` are for "Multi-core game simulation" |
+| `node test/bench/load.js` | game-server load test (see "Lag with many players"): the real host on a local mock relay with N protocol-level players (`test/bench/bot.js`: they join through the relay over WebRTC like the u53 client, log in, answer keep-alives, move every tick and never into terrain they have not received). Reports tick times, "Can't keep up!" lines, how busy the game thread was, the whole process's CPU and memory, GC and chunk counts. `--make-template` creates (and with `--pregen` pre-generates) the world it starts from. `--multicore on\|off`, `--workers <n>` (pool threads), `--host-cpus <n>` (the host on the first n CPUs only, as on a smaller server) and `--profile <file>` (a CPU profile of the game thread) are for "Multi-core mode". `--mobs <zombies>,<villagers>,<animals>` builds a mob arena above spawn (see "Entity processing: what could run in parallel"). `--speedups all\|none\|<list>` and `--speedups-verify` are for "Speedups on the game thread"; the result also counts the packets the players received, by type. `--host-cores <n>` (the host on n whole cores, the busy share of every CPU in the result), `--groups <g> --group-offset <blocks>` and `--group-center <dx,dz>` (players and arenas far apart), `--repeat-command`, `--regions on`, `--region-instances <n>` and `--rejoin <s>` are for "Multi-core game simulation" |
 | `node test/netlab/bench.js` | network lab: a real Chrome WebRTC client and the host's WebRTC stack exchange a recorded real game session over an emulated link (delay, jitter, bursty loss); measures the one-way delay of every message (see "Network performance") |
 | `node tools/netcheck.js local \| paths \| compare` | network checks for the server (see "Network performance") |
 | `node cli.js relays probe` | live compatibility check of the configured relays |
@@ -1693,3 +1737,17 @@ Earlier results (2026-10-15, single relay, still valid for the unchanged parts),
 - Never-overwrite world naming.
 - Hard-kill recovery.
 - EPK/zip export/import round trip.
+
+## Support this project
+
+If eaglan-host is useful to you, you can support its development with a donation.
+
+**Trust Wallet**, TRON network (TRC-20): TRX or USDT
+
+```text
+TQqxb8H1QFghCMpV7eHMZEkBEoR8HNXSYC
+```
+
+Send on the TRON network (TRC-20) only: coins sent to this address on another network can be lost.
+
+**Thank you for your support!** ❤️
