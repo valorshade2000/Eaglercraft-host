@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>World LAN Host</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--fg:#1d2127;--muted:#5d6672;--line:#dfe3e8;--accent:#2f7d32;--accent-fg:#fff;--warn:#b26a00;--bad:#c62828;--code-bg:#eef6ee;--mono:ui-monospace,SFMono-Regular,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#121416;--card:#1b1f23;--fg:#e6e8eb;--muted:#9aa3ad;--line:#2c3238;--accent:#4caf50;--accent-fg:#0d150d;--warn:#ffb74d;--bad:#ef5350;--code-bg:#1d2a1e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
+header h1{font-size:16px;margin:0;font-weight:650}
+header .sub{color:var(--muted);font-size:12px}
+.pill{margin-left:auto;padding:4px 10px;border-radius:99px;font-weight:600;font-size:12px;border:1px solid var(--line)}
+.pill.hosting{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+.pill.busy{background:var(--warn);color:#000;border-color:transparent}
+.pill.bad{background:var(--bad);color:#fff;border-color:transparent}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;padding:16px 20px;max-width:1300px;margin:0 auto}
+@media (max-width:900px){main{grid-template-columns:minmax(0,1fr);padding:12px 16px}}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+section h2{font-size:14px;margin:0 0 12px;font-weight:650}
+.span2{grid-column:1/-1}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;padding:7px 14px;border-radius:7px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer;font-weight:550}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.code{font:700 34px/1 var(--mono);letter-spacing:.12em;background:var(--code-bg);padding:12px 16px;border-radius:8px;display:inline-block}
+dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 14px;margin:12px 0 0}
+dt{color:var(--muted)} dd{margin:0;overflow-wrap:anywhere}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:550;font-size:12px}
+tr.sel{background:var(--code-bg)}
+tr.w{cursor:pointer}
+.muted{color:var(--muted)} .small{font-size:12px}
+input,select,textarea{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);min-width:0}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+label.chk{flex-direction:row;align-items:center;gap:6px;color:var(--fg);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;align-items:end}
+.rules{margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:12px}
+.rg+.rg{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+.rg h3{font-size:13px;margin:0 0 8px;font-weight:650}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px 18px}
+label.rule{flex-direction:row;align-items:flex-start;gap:8px;color:var(--fg);font-size:13px}
+label.rule input[type=checkbox]{margin:3px 0 0;flex:none}
+label.rule.num{justify-content:space-between;align-items:center}
+label.rule.num input{width:6.5em;flex:none}
+label.rule .d{display:block;color:var(--muted);font-size:12px}
+label.rule code{font:11px var(--mono);color:var(--muted)}
+#sRulesLive{width:2.6em;text-align:center;padding:4px 6px}
+.con{background:#0d1012;color:#cfd6dc;font:12px/1.45 var(--mono);height:230px;overflow:auto;padding:10px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.con .cmd{color:#90caf9} .con .bad{color:#ff8a80} .con .dim{color:#7b8794}
+.conline{display:flex;gap:8px;align-items:center;margin-top:8px}
+.conline .prompt{font:600 14px var(--mono);color:var(--muted)}
+.conline input{flex:1;font-family:var(--mono)}
+.chip{border:1px solid var(--line);border-radius:99px;padding:2px 10px;background:var(--bg);color:var(--fg);cursor:pointer;font-size:12px;font-weight:500}
+#log{background:#0d1012;color:#cfd6dc;font:12px/1.4 var(--mono);height:340px;overflow:auto;padding:10px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+#log .e{color:#ff8a80} #log .l{color:#81c784} #log .h{color:#90caf9}
+.msg{margin-top:10px;font-size:13px;min-height:1.2em}
+.msg.err{color:var(--bad)}
+ol{margin:6px 0 0 18px;padding:0} li{margin:3px 0}
+details summary{cursor:pointer;font-weight:600}
+.table-wrap{overflow-x:auto}
+.codes{display:flex;flex-direction:column;gap:8px}
+.codes .code{font-size:26px;padding:8px 12px}
+.codes .relay{font-size:12px;color:var(--muted)}
+.codenote{padding:8px 10px;border-left:3px solid var(--warn);background:var(--code-bg);border-radius:6px;font-size:13px;line-height:1.5}
+.st{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;font-weight:650;border:1px solid var(--line)}
+.st.active{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+.st.backoff,.st.connecting,.st.handshaking{background:var(--warn);color:#000;border-color:transparent}
+.st.incompatible{background:var(--bad);color:#fff;border-color:transparent}
+#relayTable td{font-size:12px}
+.pgbox{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.pgbox .row{align-items:flex-end}
+.pgbox input{width:7.5em}
+.don{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:20px;margin-top:10px;align-items:start}
+.don label.wide{grid-column:span 2}
+.don textarea{resize:vertical}
+.mcchat{margin-top:4px;background:rgba(0,0,0,.78);color:#fff;font:13px/1.5 var(--mono);padding:9px 11px;border-radius:6px;white-space:pre-wrap;overflow-wrap:anywhere}
+.mc-gold{color:#fa0;font-weight:700} .mc-gray{color:#aaa} .mc-yellow{color:#ff5} .mc-aqua{color:#5ff;text-decoration:underline;cursor:help} .mc-dgray{color:#777;font-style:italic}
+.dcard{margin-top:4px;background:#16181c;color:#e8eaed;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px 16px 16px;font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.dcard .h{font-weight:650;font-size:14px;color:#f4c15d} .dcard .h span{color:#ff5a6e}
+.dcard .lagn{margin-top:8px;padding:6px 9px;border-radius:8px;background:rgba(255,183,77,.14);color:#ffcc80;font-size:12px}
+.dcard .m{margin:8px 0 0;color:#d7dade;white-space:pre-wrap;overflow-wrap:anywhere}
+.dcard .g{margin-top:10px;font-size:12px;color:#c4c7cc} .dcard .bar{height:6px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:5px} .dcard .bar i{display:block;height:100%;background:linear-gradient(90deg,#f4c15d,#ff8a65)}
+.dcard .to{margin-top:12px;font-size:12px;color:#9aa0a6} .dcard code{display:block;margin-top:4px;padding:7px 9px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);font:12px var(--mono);color:#8ee0ff;overflow-wrap:anywhere}
+@media (max-width:900px){.don{grid-template-columns:minmax(0,1fr)}}
+.opts .og+.og{margin-top:16px}
+.opts .og h3{font-size:13px;margin:0;padding:6px 0;font-weight:650;border-bottom:2px solid var(--line)}
+.opts [hidden]{display:none}
+.opt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 18px;padding:10px 0;border-bottom:1px solid var(--line)}
+.opt .n{font-weight:600}
+.opt.changed .n::after{content:' · not saved';color:var(--warn);font-weight:500;font-size:12px}
+.opt code{font:12px var(--mono);color:var(--muted)}
+.opt .d{font-size:13px;margin:2px 0}
+.opt .ferr,.opt .err{color:var(--bad);font-size:12px}
+.opt .side{display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:380px}
+.opt .ctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:100%}
+.opt .ctl input[type=number]{width:9em}
+.opt .ctl input[type=text]{width:15em}
+.opt .ctl select{max-width:100%}
+.opt .omsg{font-size:12px;text-align:right}
+.opt .omsg.ok{color:var(--accent)} .opt .omsg.err{color:var(--bad)}
+.tag{display:inline-block;padding:0 7px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
+.tag.live{color:var(--accent);border-color:var(--accent)}
+.tag.restart,.tag.ui{color:var(--warn);border-color:var(--warn)}
+label.sw{flex-direction:row;align-items:center;gap:8px;cursor:pointer;color:var(--fg);font-size:13px;position:relative}
+.sw input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.sw .t{width:38px;height:22px;border-radius:99px;background:var(--line);position:relative;flex:none;transition:background .15s}
+.sw .t::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35);transition:left .15s}
+.sw input:checked+.t{background:var(--accent)}
+.sw input:checked+.t::after{left:19px}
+.sw input:focus-visible+.t{outline:2px solid var(--accent);outline-offset:2px}
+.sw .v{min-width:2.4em;font-size:12px}
+@media (max-width:700px){.opt{grid-template-columns:minmax(0,1fr)}.opt .side{align-items:stretch;max-width:none}.opt .ctl{justify-content:flex-start}.opt .omsg{text-align:left}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Eaglercraft World LAN — headless host</h1><div class="sub">EaglercraftX 1.8 u53 · native World LAN (relay + WebRTC) · no client, no GPU</div></div>
+  <span id="pill" class="pill">…</span>
+</header>
+<main>
+  <section>
+    <h2>Host</h2>
+    <div id="codeBox" class="muted">Not hosting.</div>
+    <dl id="info"></dl>
+    <div class="table-wrap" style="margin-top:10px"><table id="relayTable"></table></div>
+    <div class="row" style="margin-top:14px">
+      <button id="bStart" class="primary">Start</button>
+      <button id="bStop" class="danger">Stop</button>
+      <button id="bRestart">Restart</button>
+      <button id="bSave">Save now</button>
+      <button id="bPregen" aria-expanded="false" aria-controls="pgBox">Pre-generate</button>
+    </div>
+    <div id="pgBox" class="pgbox" hidden>
+      <div class="small muted">Generates and saves the terrain within the radius of the world spawn now, so that players do not wait for it later. Players can play meanwhile: it pauses whenever the server falls behind. It never starts by itself; an unfinished one waits here after a restart.</div>
+      <div id="pgWait" class="small" style="margin-top:8px" hidden></div>
+      <div class="row" style="margin-top:8px">
+        <label>Radius (blocks)<input id="pgRadius" type="number" min="16" max="4000" step="1" value="1000"></label>
+        <label>Speed (chunks/s)<input id="pgRate" type="number" min="0.5" max="50" step="0.5" value="4"></label>
+        <button id="bPgStart" class="primary">Start</button>
+        <button id="bPgResume" hidden>Resume</button>
+        <button id="bPgDiscard" class="danger" hidden>Discard</button>
+        <button id="bPgCancel">Cancel</button>
+      </div>
+    </div>
+    <div id="hostMsg" class="msg"></div>
+  </section>
+
+  <section>
+    <h2>How players join</h2>
+    <ol>
+      <li>Open Eaglercraft <b>1.8.8</b> (e.g. <a href="https://eaglercraft.com/play?version=1.8.8" target="_blank" rel="noreferrer">eaglercraft.com</a>, or this host's copy at <a href="/client/" target="_blank">/client/</a>).</li>
+      <li><b>Multiplayer → Direct Connect → Join Shared World</b>.</li>
+      <li>Enter <b>one</b> of the join codes shown here and press <b>Join World</b>.</li>
+    </ol>
+    <p class="small muted">The world is registered on several relays at once and every relay hands out its own code. All codes lead into the same world. A code only works on its own relay, so use the code of a relay the player's client has (the client tries every relay in its list; others can be added under <i>Network Settings</i>). Players connect peer-to-peer over WebRTC; the relay's STUN/TURN servers handle NAT. Peers can see each other's IP addresses, as in the normal game.</p>
+    <p class="small muted">A code changes when a relay loses the connection to the host: the relay registers the world again with a new code and never gives the old one back. The world and its players are not affected, and the code here is always the current one. <a href="https://eaglercraft.com/worlds" target="_blank" rel="noreferrer">eaglercraft.com</a> lists worlds on relay.eaglercraft.net only and closes a listing a few minutes after its code stops working; <b>Re-list</b> there takes the new code. A relay's shared-world list in the game shows a world only to players on the host's own network, so players elsewhere need a code.</p>
+    <p class="small muted">The host runs as a separate background process. Closing this page or the UI server does not disconnect anyone. Use Stop to shut it down cleanly.</p>
+  </section>
+
+  <section class="span2" id="conSec">
+    <div class="row" style="margin-bottom:8px"><h2 style="margin:0">Console</h2>
+      <span class="small muted">Runs commands as the server, like a server console. <b>help</b> lists them · Tab completes · ↑/↓ earlier commands</span></div>
+    <div id="conInfo" class="small" style="margin-bottom:8px"></div>
+    <pre id="conOut" class="con" aria-live="polite"></pre>
+    <form id="conForm" class="conline"><span class="prompt">/</span><input id="conIn" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="Server command" placeholder="tp Steve Alex · gamemode survival Steve · op Steve · pregen 1000"><button id="conRun" class="primary">Run</button></form>
+    <div id="conPlayers" class="row small" style="margin-top:8px"></div>
+  </section>
+
+  <section class="span2">
+    <h2>Worlds</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th></th><th>Name</th><th>Folder</th><th>Mode</th><th>Last played</th><th>Size</th></tr></thead>
+      <tbody id="worlds"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+    </table></div>
+    <div class="row" style="margin-top:12px">
+      <button id="bHost" class="primary" disabled>Host selected world</button>
+      <button id="bExpEpk" disabled>Export .epk</button>
+      <button id="bExpZip" disabled>Export vanilla .zip</button>
+      <button id="bRename" disabled aria-controls="renameBox">Rename</button>
+      <button id="bDelete" class="danger" disabled aria-controls="deleteBox">Delete</button>
+      <span class="small muted" id="selInfo"></span>
+    </div>
+    <div id="renameBox" class="pgbox" hidden>
+      <div class="row"><label style="flex:1 1 260px">New name for <span id="rnOld"></span><input id="rnName" maxlength="100" autocomplete="off"></label><button id="bRnOk" class="primary">Rename</button><button id="bRnCancel">Cancel</button></div>
+      <div class="small muted" style="margin-top:6px">The name shown here and in the relays' lists of shared worlds (unless Settings has a shared world name). The world's folder gets the new name too, because this game version names a world after its folder; everything in the world stays as it is. Characters a folder cannot have (/ \ : * ? " &lt; &gt; | and a few more) become _, and a name another world has gets a - added.</div>
+    </div>
+    <div id="deleteBox" class="pgbox" hidden>
+      <div class="small">Delete <b id="dlName"></b>? It moves to <b>Deleted worlds</b> below, where it can be restored. Type its name to confirm.</div>
+      <div class="row" style="margin-top:8px"><input id="dlConfirm" autocomplete="off" spellcheck="false" aria-label="The world's name, to confirm"><button id="bDlOk" class="danger" disabled>Delete</button><button id="bDlCancel">Cancel</button></div>
+    </div>
+    <details style="margin-top:16px" id="createBox">
+      <summary>Create a new world</summary>
+      <div class="grid">
+        <label>World name<input id="cName" value="New World" maxlength="100"></label>
+        <label>Seed (blank = random)<input id="cSeed"></label>
+        <label>Game mode<select id="cMode"><option value="0">Survival</option><option value="1">Creative</option><option value="2">Adventure</option></select></label>
+        <label>World type<select id="cType"><option value="0">Default</option><option value="1">Superflat</option><option value="2">Large Biomes</option><option value="3">Amplified</option></select></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="chk"><input type="checkbox" id="cStruct" checked>Generate structures</label>
+        <label class="chk"><input type="checkbox" id="cBonus">Bonus chest</label>
+        <label class="chk" title="Saved in the world, for when it is played in single-player (after an export). On this host it gives nobody commands: give OP in the Console, or turn on &quot;Allow cheats for every player&quot; in Settings."><input type="checkbox" id="cCheats">Allow cheats (saved in the world only)</label>
+        <label class="chk"><input type="checkbox" id="cHard">Hardcore</label>
+      </div>
+      <div class="row" style="margin-top:10px"><button id="bCreate" class="primary">Create and host</button><span class="small muted">A new folder is always used. Existing worlds are never overwritten.</span></div>
+    </details>
+    <details style="margin-top:12px">
+      <summary>Import a world (.epk from Eaglercraft, or a vanilla 1.8 .zip)</summary>
+      <div class="row" style="margin-top:10px">
+        <input type="file" id="iFile" accept=".epk,.zip">
+        <input id="iName" placeholder="World name" value="Imported World">
+        <button id="bImport">Import</button>
+      </div>
+      <p class="small muted">In the browser game: Singleplayer → select world → Backup → Export EPK. Imports and exports use the game's own converters; imports always go into a new folder. An exported .epk can be imported back into any browser copy of Eaglercraft 1.8.</p>
+    </details>
+    <details style="margin-top:12px" id="trashBox" hidden>
+      <summary>Deleted worlds (<span id="trashN">0</span>)</summary>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Name</th><th>Folder</th><th>Deleted</th><th>Size</th><th></th></tr></thead>
+        <tbody id="trash"></tbody>
+      </table></div>
+      <div id="purgeBox" class="pgbox" hidden>
+        <div class="small">Delete <b id="purgeName"></b> permanently? Its files are removed for good; this cannot be undone. Type its name to confirm.</div>
+        <div class="row" style="margin-top:8px"><input id="purgeConfirm" autocomplete="off" spellcheck="false" aria-label="The world's name, to confirm"><button id="bPurgeOk" class="danger" disabled>Delete permanently</button><button id="bPurgeCancel">Cancel</button></div>
+      </div>
+      <p class="small muted">Restore puts a world back in the list, into a new folder if its old one has been taken since. A deleted world stays in data/worlds.sqlite until it is deleted permanently. Restore and delete work only while no world runs.</p>
+    </details>
+    <div id="worldMsg" class="msg"></div>
+    <div id="exports" class="small" style="margin-top:8px"></div>
+  </section>
+
+  <section class="span2">
+    <h2>Settings <span class="small muted">(relays, LAN game mode, cheats, "send twice", Game Rules in mode 1 and the multi-core mode apply at once; other settings at the next Start/Restart; more settings: <a href="#optSec">Option Manual</a>)</span></h2>
+    <div class="grid">
+      <label>LAN game mode for joiners<select id="sMode"><option value="0">Survival</option><option value="1">Creative</option><option value="2">Adventure</option><option value="3">Spectator</option></select></label>
+      <label>Difficulty<select id="sDiff"><option value="0">Peaceful</option><option value="1">Easy</option><option value="2">Normal</option><option value="3">Hard</option></select></label>
+      <label>View distance (chunks)<input id="sView" type="number" min="2" max="16"></label>
+      <label title="The integrated server's owner. A player using this name keeps their own game mode instead of the LAN game mode. It gives no commands: OP is given only in the Console. Don't let players use this name.">Owner name (not OP)<input id="sOwner" maxlength="16"></label>
+      <label>Shared world name<input id="sLanName" maxlength="200" placeholder="same as the world name"></label>
+      <label title="Players who join when this many are online get the message &quot;This world is full&quot; and are refused (this game version enforces no limit itself). Applies to players who join after saving; players already in the world stay. Empty: no limit.">Player limit<input id="sLimit" type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="no limit"></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="chk" title="Every player who joins can use all commands (gamemode, give, tp, kill, time, setblock, fill ...). The game has no per-player list for this. Use only with players you trust."><input type="checkbox" id="sCheats">Allow cheats for every player (all commands)</label>
+      <label class="chk"><input type="checkbox" id="sHidden">Hidden (not listed in public shared-world lists)</label>
+      <label class="chk" title="Sends each small game packet to players a second time 10 ms later, so a lost packet usually costs nothing. Helps players on lossy connections (e.g. China at peak hours). About 70% more upload per player. Needs the server's public IP on a network interface, or a UDP port (set below) that is forwarded to this server; otherwise players connect as before. Applies to players who join after saving."><input type="checkbox" id="sRedundant">Send small packets twice (lossy connections, ~70% more upload)</label>
+      <label class="chk" title="The game itself always runs on one thread: its ticks, mobs, block updates, world generation and lighting depend on the order things happen in. With this on, the host compresses the large network packets (chunks) and the saved chunk files on other CPU cores while the game thread goes on with its tick. It uses the CPUs this server lets it use, keeping one for the game. Applies at once, without a restart; players stay connected. Off: the game compresses them itself, as before."><input type="checkbox" id="sMultiCore">Multi-core mode (compress packets and saved chunks on other CPU cores)</label>
+    </div>
+    <div id="twicePortBox" class="row" style="margin-top:8px;align-items:flex-end">
+      <label style="width:200px">UDP port for "send twice"<input id="sRedPort" type="number" min="1024" max="65535" step="1" inputmode="numeric" placeholder="automatic"></label>
+      <span class="small muted" style="flex:1 1 260px">Players send to this port. Allow incoming UDP on it in the server's firewall, and forward it to this server if the server is behind NAT. Empty: a free port for each player, which only works with the server's public IP on a network interface.</span>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label class="chk" title="The values below are set in the world by this host: at every start, and also when you save if the box next to this says 1."><input type="checkbox" id="sRules">Game Rules</label>
+      <input id="sRulesLive" type="text" inputmode="numeric" maxlength="1" autocomplete="off" aria-label="Game Rules apply mode, 1 or 0" title="1 = apply changes at once, while the world runs, without a restart. 0 = changes take effect at the next Start/Restart.">
+      <span class="small muted">1 = apply at once, while the world runs · 0 = at the next Start/Restart</span>
+    </div>
+    <div id="rulesBox" class="rules" style="display:none">
+      <div id="rulesGroups"></div>
+      <div class="row" style="margin-top:12px"><button type="button" id="bRulesDefaults">Game defaults</button><button type="button" id="bRulesWorld">Values in the world</button><span id="rulesSrc" class="small muted"></span></div>
+      <div class="small muted" style="margin-top:8px">Game rules are saved in the world. The other switches (PvP, flying, idle kick, command blocks) last only while the world runs, so the host sets them at every start. Unticking Game Rules leaves the world as it is and puts those switches back to the game's own values. Not offered on purpose: "spawn animals" and "spawn villagers" (in this game version switching them off deletes the animals or villagers already there, pets included) and "max players" (not enforced by this game version; use "Player limit" above). Difficulty, view distance and the LAN game mode are above.</div>
+    </div>
+    <label style="margin-top:10px">Relays, one per line (stored in data/relays.txt). The world is registered on all of them at the same time; unavailable ones are retried automatically.<textarea id="sRelays" rows="8" spellcheck="false"></textarea></label>
+    <div id="relayWarn" class="small" style="color:var(--warn);margin-top:4px"></div>
+    <div class="row" style="margin-top:10px"><button id="bCfg">Save settings</button><span id="cfgMsg" class="small muted"></span></div>
+  </section>
+
+  <section class="span2" id="donSec">
+    <div class="row" style="margin-bottom:6px"><h2 style="margin:0">Donation message</h2>
+      <label class="sw" title="Off by default"><input type="checkbox" role="switch" id="dOn" aria-label="Donation message on or off"><span class="t"></span><b class="v" id="dOnV">OFF</b></label>
+      <span class="small muted" id="dNow" style="margin-left:auto"></span></div>
+    <div class="small muted">Asks players to support the server: in the in-game chat when the server lags (at most once per cooldown) and when you send it, and on the players' page (<a href="/client/" target="_blank" rel="noopener">/client/</a>, <a href="/donate" target="_blank" rel="noopener">/donate</a>). No payment service: type in what was raised yourself.</div>
+    <div class="don">
+      <div>
+        <label>Message<textarea id="dMsg" rows="3" maxlength="300" spellcheck="true"></textarea></label>
+        <div class="grid">
+          <label title="0: no goal shown">Fundraising goal<input id="dGoal" type="number" min="0" step="any" inputmode="decimal"></label>
+          <label title="What has come in so far; you update it">Raised so far<input id="dRaised" type="number" min="0" step="any" inputmode="decimal"></label>
+          <label>Currency<input id="dCur" maxlength="12"></label>
+          <label>The goal is for<input id="dFor" maxlength="60" placeholder="a faster server"></label>
+        </div>
+        <div class="grid">
+          <label class="wide">Wallet address<input id="dAddr" maxlength="100" spellcheck="false" autocomplete="off"></label>
+          <label title="Tell players which network to send on">Network<input id="dNet" maxlength="40"></label>
+        </div>
+        <div class="grid">
+          <label title="20 is full speed. When the game runs fewer ticks per second than this over 30 seconds while players are on, the message goes to the chat.">Lag threshold (ticks per second, 20 = full speed)<input id="dTps" type="number" min="1" max="19.5" step="0.5" inputmode="decimal"></label>
+          <label title="At most one automatic message per this many minutes">Cooldown between messages (minutes)<input id="dCool" type="number" min="1" max="1440" step="1" inputmode="numeric"></label>
+        </div>
+        <div class="row" style="margin-top:12px"><button id="bDon" class="primary">Save</button><button id="bDonSend" title="Send the message to every player now (a running world)">Send to chat now</button><button id="bDonDef" title="Put the default values in the fields (Save keeps them)">Defaults</button><span id="donMsg" class="small muted"></span></div>
+      </div>
+      <div class="donPrev">
+        <div class="small muted">In-game chat</div>
+        <div class="mcchat" id="dChat" aria-label="Preview of the chat message"></div>
+        <div class="small muted" style="margin-top:12px">Players' page</div>
+        <div class="dcard" id="dCard" aria-label="Preview of the players' page card"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="span2">
+    <div class="row" style="margin-bottom:10px"><h2 style="margin:0">Logs</h2><span id="logSrc" class="small muted"></span>
+      <label class="chk" style="margin-left:auto"><input type="checkbox" id="autoScroll" checked>Auto-scroll</label></div>
+    <pre id="log"></pre>
+  </section>
+
+  <section class="span2" id="optSec">
+    <div class="row" style="margin-bottom:8px"><h2 style="margin:0">Option Manual</h2><span class="small muted">the other settings of data/config.json, each saved on its own</span>
+      <input id="optFilter" type="search" placeholder="Filter: key, name or words" aria-label="Filter the settings" style="margin-left:auto;width:17em"><button type="button" id="bOptReload" title="Read data/config.json again (changes not saved here are dropped)">Reload</button></div>
+    <div id="optSum" class="small muted">Loading…</div>
+    <div id="optPending" class="codenote" style="margin-top:8px" hidden></div>
+    <div id="optList" class="opts" style="margin-top:6px"></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let selected = null, lastStatus = null, logSince = 0, logLive = null, logInstance = null, worldsCache = [];
+// Polls never overlap: a slow response must not race the next poll (that duplicated log lines).
+const once = (fn) => { let busy = false; return async (...a) => { if (busy) return; busy = true; try { return await fn(...a); } finally { busy = false; } }; };
+async function api(path, opts) {
+  const r = await fetch('/api/' + path, opts);
+  const j = await r.json().catch(() => ({ error: 'bad response' }));
+  if (!r.ok || j.error) throw new Error(j.error || r.statusText);
+  return j;
+}
+const post = (p, b) => api(p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b || {}) });
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const modes = ['Survival', 'Creative', 'Adventure', 'Spectator'];
+const fmtBytes = (b) => b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1024).toFixed(0) + ' KB';
+const hhmm = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+// Multi-core mode (README "Multi-core mode"): on (pool threads, the CPUs, what went through the pool),
+// off, or why it is not on.
+function mcText(m) {
+  if (m.on) {
+    const c = m.cpu, cores = c && c.cores != null ? Math.round(c.cores * 100) / 100 : '?';
+    const busy = (m.threadsBusy || []).map((t) => (t.busyPct ?? 0) + '%').join(' / ');
+    return `on: ${m.threads} pool thread${m.threads === 1 ? '' : 's'} (${cores} CPUs available to this process${c && c.limitedBy ? ', limited by ' + esc(c.limitedBy) : ''}; one stays with the game)` +
+      (busy ? ` · busy ${busy}` : '') + ` · ${m.packets} packets (${m.rawMb} MB → ${m.compressedMb} MB) and ${m.saves || 0} chunk files compressed on them`;
+  }
+  if (m.status === 'unavailable' || m.status === 'failed') return `<span style="color:var(--bad)">not on: ${esc(m.error || m.status)}</span> · the game runs single-threaded as before`;
+  return 'off: the game compresses its packets and chunk files itself';
+}
+const mcShort = (m) => (m.on ? `on (${m.threads} pool thread${m.threads === 1 ? '' : 's'})` : m.status === 'off' ? 'off' : 'not on: ' + (m.error || m.status));
+// Copies at once with execCommand, which also works on a plain http page (navigator.clipboard
+// needs https or localhost) and finishes before another tab takes the focus; then tries the
+// Clipboard API; otherwise shows the code.
+function copyText(t, ok) {
+  const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0'; document.body.appendChild(ta); ta.select();
+  let done = false; try { done = document.execCommand('copy'); } catch {}
+  ta.remove();
+  if (done) return msg('hostMsg', ok);
+  const fail = () => msg('hostMsg', `Copying did not work here; the code is ${t}.`, true);
+  try { navigator.clipboard.writeText(t).then(() => msg('hostMsg', ok), fail); } catch { fail(); }
+}
+// A relay that lost the connection registers the world again with a new code and never gives the
+// old one back (README "When the join code changes"). eaglercraft.com lists worlds on
+// relay.eaglercraft.net only and closes a listing a few minutes after its code stops working;
+// Re-list there takes the new code and keeps the listing.
+const RELIST_URL = 'https://eaglercraft.com/dashboard/worlds';
+let shownCodeHtml = null;
+// Codes whose note was hidden (this browser only; the note comes back with the next new code).
+function hiddenNotes() { try { const v = JSON.parse(localStorage.getItem('eaglan.codeNotesHidden') || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } }
+function hideNote(code) { try { localStorage.setItem('eaglan.codeNotesHidden', JSON.stringify([...hiddenNotes().filter((x) => x !== code), code].slice(-16))); } catch {} }
+function codeNote(c) {
+  if (!c.previousCode || c.changedAt !== c.since) return '';
+  if (hiddenNotes().includes(c.code)) return '';
+  const listed = c.name === 'relay.eaglercraft.net';
+  return `<div class="codenote">New code since ${esc(hhmm(c.since))}: the connection to the relay was lost, so <b>${esc(c.previousCode)}</b> no longer works. The world and its players are not affected.` +
+    (listed ? ` A listing on eaglercraft.com closes a few minutes after its code stops working: <button data-relist="${esc(c.code)}">Copy code and open My worlds</button> then press <b>Re-list</b> on the listing and paste the code.` : ' Give new players the new code.') +
+    ` <button data-hidenote="${esc(c.code)}" title="Hide this note until the code changes again">Hide</button></div>`;
+}
+const ago = (t) => { if (!t) return '—'; const s = (Date.now() - t) / 1000; return s < 90 ? Math.round(s) + 's ago' : s < 5400 ? Math.round(s / 60) + ' min ago' : s < 129600 ? Math.round(s / 3600) + ' h ago' : new Date(t).toLocaleDateString(); };
+function msg(el, text, err) { $(el).textContent = text || ''; $(el).className = 'msg' + (err ? ' err' : ''); }
+
+async function refreshStatus() {
+  let s; try { s = await api('status'); } catch (e) { $('pill').textContent = 'UI error'; return; }
+  lastStatus = s;
+  const st = s.running ? s.status : (s.status === 'crashed' ? 'crashed' : 'stopped');
+  const pill = $('pill'); pill.textContent = st;
+  pill.className = 'pill ' + (st === 'hosting' ? 'hosting' : st === 'crashed' ? 'bad' : s.running ? 'busy' : '');
+  if (st === 'hosting' && s.relays) pill.textContent = `hosting · ${s.relays.filter((r) => r.state === 'active').length}/${s.relays.length} relays`;
+  const codes = s.running ? (s.codes || (s.code ? [{ code: s.code, relay: s.relay, name: s.relay }] : [])) : [];
+  // Redrawn only when it changes: a click that straddles a redraw would hit a replaced button.
+  let codeHtml;
+  if (codes.length) {
+    codeHtml = `<div class="small muted">Join codes: any of them joins the same world</div><div class="codes">` + codes.map((c, i) =>
+      `<div class="row"><span class="code">${esc(c.code)}</span><span class="relay">${esc(c.name || c.relay)}${c.turn ? ' · TURN' : ''}${c.since ? ' · since ' + esc(hhmm(c.since)) : ''}</span><button data-copy="${esc(c.code)}">Copy</button></div>` + codeNote(c)).join('') + `</div>`;
+  } else if (s.running) codeHtml = `<span class="muted">${st === 'waiting-for-relay' ? 'No relay is connected yet; new players cannot join. Retrying automatically…' : esc(st) + '…'}</span>`;
+  else codeHtml = `<span class="muted">Not hosting.${s.stopReason ? ' Last stop: ' + esc(s.stopReason) + '.' : ''}</span>`;
+  if (codeHtml !== shownCodeHtml) {
+    shownCodeHtml = codeHtml; $('codeBox').innerHTML = codeHtml;
+    $('codeBox').querySelectorAll('button[data-copy]').forEach((b) => b.onclick = () => copyText(b.dataset.copy, 'Code copied.'));
+    $('codeBox').querySelectorAll('button[data-relist]').forEach((b) => b.onclick = () => {
+      copyText(b.dataset.relist, `Code ${b.dataset.relist} copied. On eaglercraft.com press Re-list on the listing and paste it.`);
+      window.open(RELIST_URL, '_blank', 'noopener');
+    });
+    $('codeBox').querySelectorAll('button[data-hidenote]').forEach((b) => b.onclick = () => { hideNote(b.dataset.hidenote); b.closest('.codenote').remove(); });
+  }
+  const relays = s.running ? (s.relays || []) : [];
+  const inS = (t) => { if (!t) return ''; const d = Math.max(0, Math.round((t - Date.now()) / 1000)); return d >= 120 ? Math.round(d / 60) + ' min' : d + 's'; };
+  $('relayTable').innerHTML = relays.length ? `<thead><tr><th>Relay</th><th>State</th><th>Code</th><th>Players</th><th>Details</th></tr></thead><tbody>` + relays.map((r) =>
+    `<tr><td>${esc(r.name)}</td><td><span class="st ${esc(r.state)}">${esc(r.state)}</span></td><td>${esc(r.code || '')}</td><td>${r.players || 0}${r.joining ? ` (+${r.joining} joining)` : ''}</td>` +
+    `<td class="muted">${r.state === 'active' ? `up ${ago(r.activeSince).replace(' ago', '')}${r.turn ? ', TURN' : ''}` : esc(r.lastError || '')}${r.nextRetryAt && r.state !== 'active' ? ` · retry in ${inS(r.nextRetryAt)}` : ''}</td></tr>`).join('') + `</tbody>` : '';
+  const peers = (s.peers || []);
+  const rows = [];
+  if (s.running) {
+    const nActive = relays.filter((r) => r.state === 'active').length;
+    rows.push(['World', `${esc(s.world)}`], ['Relays', relays.length ? `${nActive} of ${relays.length} active` : '—'], ['Players', `${s.playerCount || 0} connected` + (s.playerLimit ? ` (limit ${s.playerLimit}${s.refusedFull ? `, ${s.refusedFull} refused: full` : ''})` : '') + (peers.length ? ' · ' + peers.map((p) => `${esc(p.name || p.id.slice(-6))} via ${esc(p.relay || '')} (${p.state === 'CONNECTED' ? (p.rtt ? `${p.rtt.last} ms` : 'connected') : p.state.toLowerCase()})`).join(', ') : '')],
+      ['LAN game mode', modes[s.lanGamemode] || '—'], ['Cheats', s.lanCheats ? 'on for every player' : 'off'], ['Server TPS', esc((s.tps || []).join(' · ') || '—')],
+      ...(s.hostLoad ? [['Host load', `CPU ${s.hostLoad.cpu}% of one core (game thread ${s.hostLoad.gameBusy ?? '?'}%, network thread ${s.hostLoad.netBusy}%${s.hostLoad.poolBusy != null ? ', multi-core pool ' + s.hostLoad.poolBusy + '%' : ''}, WebRTC/GC/other ${s.hostLoad.other ?? '?'}%) · ${s.hostLoad.msgsPerSec} player messages/s · memory ${s.hostLoad.rssMb} MB (game ${s.hostLoad.gameHeapMb != null ? s.hostLoad.gameHeapMb + (s.hostLoad.gameExternalMb || 0) : '?'} MB, host ${s.hostLoad.hostHeapMb + (s.hostLoad.hostExternalMb || 0)} MB)`]] : []),
+      ...(s.gameServer ? [['Game server', `thread busy ${s.gameServer.busy}% · ${s.gameServer.ticks ? `ticks: median ${s.gameServer.ticks.p50} ms, longest ${s.gameServer.ticks.max} ms, ${s.gameServer.ticks.over50} over 50 ms · ` : ''}disk writes ${s.gameServer.writesPerMin}/min (slowest ${s.gameServer.maxWriteMs} ms) · longest GC pause ${s.gameServer.maxGcMs} ms`]] : []),
+      ...(s.pregen ? [['Pre-generation', `${s.pregen.running ? 'running' : s.pregen.done ? 'finished' : 'stopped'}: ${s.pregen.processed} of ${s.pregen.total} chunks within ${s.pregen.radius} blocks of spawn (${s.pregen.total ? Math.floor((s.pregen.processed / s.pregen.total) * 100) : 0}%) · ${s.pregen.generated} generated, ${s.pregen.read} read from disk, ${s.pregen.lit} lit · paused for players in ${s.pregen.yieldedTicks} ticks`]] : []),
+      ...(s.pregenWaiting && !(s.pregen && s.pregen.running) ? [['Unfinished pre-generation', `${s.pregenWaiting.radius} blocks, ring ${s.pregenWaiting.ring} of ${s.pregenWaiting.rings}: waiting; <b>Pre-generate</b> resumes or discards it`]] : []),
+      ...(s.gameRules && s.gameRules.enabled ? [['Game rules', `set from this page (apply mode ${s.gameRules.live})` + (s.gameRules.appliedAt ? `, last applied ${ago(s.gameRules.appliedAt)}` : '') + (s.gameRules.pending ? ', changes wait for the next start' : '') + (s.gameRules.error ? ` · <span style="color:var(--bad)">${esc(s.gameRules.error)}</span>` : '')]] : []),
+      ...(s.multiCore ? [['Multi-core', mcText(s.multiCore)]] : []),
+      ...(s.redundantSend ? [['Send twice', `on (${s.redundantPort ? 'UDP port ' + s.redundantPort : 'automatic port'})` + (s.redundantUnavailable ? ', but not usable here: ' + esc(s.redundantUnavailable) : '')]] : []), ['Process', `pid ${s.pid}, up ${ago(s.startedAt).replace(' ago', '')}`]);
+  } else if (s.world) rows.push(['Last world', esc(s.world)]);
+  if (s.error) rows.push(['Last error', `<span style="color:var(--bad)">${esc(String(s.error).slice(0, 300))}</span>`]);
+  $('info').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  const online = s.running ? peers.filter((p) => p.state === 'CONNECTED' && p.name).map((p) => p.name) : [];
+  const chips = online.length ? '<span class="muted">Players online (click to insert):</span> ' + online.map((n) => `<button type="button" class="chip" data-name="${esc(n)}">${esc(n)}</button>`).join(' ') : `<span class="muted">${s.running ? 'No players online.' : 'The world is not running: start it to use game commands (op, deop and ops work any time).'}</span>`;
+  if ($('conPlayers').dataset.html !== chips) { $('conPlayers').dataset.html = chips; $('conPlayers').innerHTML = chips; }
+  $('bStop').disabled = !s.running; $('bSave').disabled = !(s.running && (st === 'hosting' || st === 'waiting-for-relay'));
+  pregenButton(s, s.running && (st === 'hosting' || st === 'waiting-for-relay'));
+  $('bRestart').disabled = !s.world || s.mode === 'import';
+  $('bStart').disabled = s.running || !(selected || s.world);
+  $('bHost').disabled = s.running || !selected;
+  $('bCreate').disabled = s.running;
+  $('bExpEpk').disabled = $('bExpZip').disabled = s.running || !selected;
+  $('bRename').disabled = $('bDelete').disabled = s.running || !selected;
+  if (s.running) showWorldBox(null);
+  $('bImport').disabled = s.running;
+  if (logLive !== !!s.running) { logLive = !!s.running; logSince = 0; logInstance = null; $('log').innerHTML = ''; }
+  optPending(); donNow();
+}
+
+async function refreshWorlds() {
+  try { worldsCache = await api('worlds'); } catch (e) { msg('worldMsg', e.message, true); return; }
+  refreshTrash();
+  const tb = $('worlds');
+  if (!worldsCache.length) {
+    tb.innerHTML = '<tr><td colspan="6" class="muted">No worlds yet. Create one below.</td></tr>';
+    $('createBox').open = true; return;
+  }
+  if (selected && !worldsCache.some((w) => w.folder === selected)) selected = null;
+  tb.innerHTML = worldsCache.map((w) => `<tr class="w${w.folder === selected ? ' sel' : ''}" data-f="${esc(w.folder)}">
+    <td><input type="radio" name="w" ${w.folder === selected ? 'checked' : ''} ${w.error ? 'disabled' : ''}></td>
+    <td>${esc(w.name || w.folder)}${w.hardcore ? ' <span class="small muted">hardcore</span>' : ''}${w.error ? `<div class="small" style="color:var(--bad)">${esc(w.error)}</div>` : ''}</td>
+    <td class="small muted">${esc(w.folder)}</td><td>${modes[w.gameType] || '—'}</td><td>${ago(w.lastPlayed)}</td><td class="small">${fmtBytes(w.bytes || 0)} · ${w.files} files</td></tr>`).join('');
+  tb.querySelectorAll('tr.w').forEach((tr) => tr.onclick = () => { const w = worldsCache.find((x) => x.folder === tr.dataset.f); if (w && !w.error) { if (selected !== w.folder) showWorldBox(null); selected = w.folder; refreshWorlds(); refreshStatus(); $('selInfo').textContent = 'Selected: ' + (w.name || w.folder); } });
+}
+
+const refreshLogs = once(async () => {
+  try {
+    const r = await api('logs?since=' + logSince);
+    $('logSrc').textContent = r.live ? '(live from host process)' : '(last run, from data/logs/host.log)';
+    const el = $('log');
+    let lines = r.lines;
+    if (!r.live) { if (logSince !== -1) { el.innerHTML = ''; logSince = -1; } else return; }
+    else {
+      // A restarted host numbers its lines from 1 again: start the view over.
+      if (r.instance && r.instance !== logInstance) { if (logInstance !== null) el.innerHTML = ''; logInstance = r.instance; if (logSince > 0) { logSince = 0; return; } }
+      // Append each line exactly once, in order, whatever order responses arrive in.
+      lines = lines.filter((l) => l.seq > logSince);
+      if (lines.length) logSince = lines[lines.length - 1].seq;
+    }
+    const frag = lines.map((l) => { const t = l.line; const cls = /error|fail|crash|exception/i.test(t) ? 'e' : / \[lan\] /.test(t) ? 'l' : / \[host\] /.test(t) ? 'h' : ''; return `<span class="${cls}">${esc(t)}</span>\n`; }).join('');
+    if (frag) { el.insertAdjacentHTML('beforeend', frag); if (el.childElementCount > 3000) while (el.childElementCount > 2500) el.firstChild.remove(); if ($('autoScroll').checked) el.scrollTop = el.scrollHeight; }
+  } catch {}
+});
+
+async function refreshExports() {
+  try {
+    const ex = await api('exports');
+    $('exports').innerHTML = ex.length ? '<span class="muted">Exports:</span> ' + ex.slice(0, 8).map((e) => `<a href="/exports/${encodeURIComponent(e.name)}">${esc(e.name)}</a> <span class="muted">(${fmtBytes(e.bytes)})</span>`).join(' · ') : '';
+  } catch {}
+}
+
+// Console: commands run as the server; op/deop/ops change the OP list, which only this console can do.
+const conHist = (() => { try { const h = JSON.parse(localStorage.getItem('conHist') || '[]'); return Array.isArray(h) ? h : []; } catch { return []; } })();
+let conPos = conHist.length;
+function conPrint(text, cls) { const el = $('conOut'); el.insertAdjacentHTML('beforeend', `<span class="${cls || ''}">${esc(text)}</span>\n`); el.scrollTop = el.scrollHeight; }
+function conInfo(ops, cheats) {
+  $('conInfo').innerHTML = `<b>OPs</b> (every command; only this console can give or take OP): ${ops.length ? ops.map(esc).join(', ') : '<span class="muted">nobody</span>'}` +
+    (cheats ? '<div style="color:var(--warn)">"Allow cheats for every player" is on: every player can use commands, OP or not. Turn it off to limit commands to OPs.</div>' : '') +
+    '<div class="muted">Eaglercraft has no accounts: anyone who joins with an OP\'s name gets OP.</div>';
+}
+async function conRun(cmd) {
+  cmd = cmd.trim().replace(/^\/+/, ''); if (!cmd) return;
+  if (conHist[conHist.length - 1] !== cmd) { conHist.push(cmd); if (conHist.length > 100) conHist.shift(); }
+  conPos = conHist.length;
+  try { localStorage.setItem('conHist', JSON.stringify(conHist)); } catch {}
+  conPrint('> /' + cmd, 'cmd');
+  $('conRun').disabled = true;
+  try {
+    const r = await post('console', { command: cmd }), log = r.log || [];
+    if (!r.lines.length && !log.length) conPrint(r.ok ? '(done, no output)' : '(no output)', 'dim');
+    for (const l of r.lines) conPrint(l, r.ok ? '' : 'bad');
+    for (const l of log) conPrint(l, 'dim');   // what the command made the server log (say, deaths, ...)
+    if (r.ops) conInfo(r.ops, $('sCheats').checked);
+  } catch (e) { conPrint(e.message, 'bad'); }
+  $('conRun').disabled = false; $('conIn').focus();
+}
+async function conComplete() {
+  const el = $('conIn'), text = el.value.replace(/^\/+/, '');
+  let r; try { r = await post('console-complete', { text }); } catch { return; }
+  const opts = (r.list || []).map((x) => x.replace(/^\//, ''));
+  if (!opts.length) return;
+  const words = text.split(' '), last = words[words.length - 1];
+  let pre = opts[0];
+  for (const o of opts) { let i = 0; while (i < pre.length && i < o.length && pre[i].toLowerCase() === o[i].toLowerCase()) i++; pre = pre.slice(0, i); }
+  if (opts.length === 1) { words[words.length - 1] = opts[0]; el.value = words.join(' ') + ' '; }
+  else { if (pre.length > last.length) { words[words.length - 1] = pre; el.value = words.join(' '); } conPrint(opts.join('   '), 'dim'); }
+}
+$('conForm').onsubmit = (e) => { e.preventDefault(); const v = $('conIn').value; $('conIn').value = ''; conRun(v); };
+$('conIn').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowUp') { if (conPos > 0) { conPos--; e.target.value = conHist[conPos]; } e.preventDefault(); }
+  else if (e.key === 'ArrowDown') { if (conPos < conHist.length) { conPos++; e.target.value = conHist[conPos] || ''; } e.preventDefault(); }
+  else if (e.key === 'Tab') { e.preventDefault(); conComplete(); }
+});
+$('conPlayers').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-name]'); if (!b) return;
+  const el = $('conIn'); el.value = (el.value && !/\s$/.test(el.value) ? el.value + ' ' : el.value) + b.dataset.name + ' '; el.focus();
+});
+
+// Game Rules section (the list and the game's defaults come from /api/gamerules, see src/game-rules.js).
+let rulesInfo = null;
+function ruleItem(x, isRule) {
+  const name = `<span><span class="n">${esc(x.label)}</span>${isRule ? ` <code>${esc(x.name)}</code>` : ''}<span class="d">${esc(x.desc)}</span></span>`;
+  return x.type === 'bool'
+    ? `<label class="rule"><input type="checkbox" data-rule="${esc(x.name)}">${name}</label>`
+    : `<label class="rule num">${name}<input type="number" data-rule="${esc(x.name)}" data-label="${esc(x.label)}" min="${x.min}" max="${x.max}" step="1" inputmode="numeric"></label>`;
+}
+function buildRules(info) {
+  const cheats = '<label class="rule"><input type="checkbox" id="grCheats"><span><span class="n">Commands for every player</span><span class="d">The same setting as "Allow cheats for every player" above: every player can use all commands.</span></span></label>';
+  $('rulesGroups').innerHTML = info.groups.map((g) => {
+    const items = [...info.switches.filter((x) => x.group === g.id).map((x) => ruleItem(x, false)), ...info.rules.filter((x) => x.group === g.id).map((x) => ruleItem(x, true))];
+    if (g.id === 'commands') items.unshift(cheats);
+    return `<div class="rg"><h3>${esc(g.label)}</h3><div class="rgrid">${items.join('')}</div></div>`;
+  }).join('');
+  $('grCheats').addEventListener('change', () => { $('sCheats').checked = $('grCheats').checked; });
+}
+function setRuleValues(values) {
+  for (const el of document.querySelectorAll('#rulesGroups [data-rule]')) {
+    const v = values[el.dataset.rule];
+    if (v === undefined) continue;
+    if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
+  }
+}
+function ruleValues() {
+  const out = {};
+  for (const el of document.querySelectorAll('#rulesGroups [data-rule]')) {
+    if (el.type === 'checkbox') { out[el.dataset.rule] = el.checked; continue; }
+    const n = Number(el.value);
+    if (el.validity.badInput || el.value.trim() === '' || !Number.isInteger(n) || n < +el.min || n > +el.max) throw new Error(`Game Rules: "${el.dataset.label}" must be a whole number from ${el.min} to ${el.max}.`);
+    out[el.dataset.rule] = n;
+  }
+  return out;
+}
+function showRules() { $('rulesBox').style.display = $('sRules').checked ? '' : 'none'; if ($('grCheats')) $('grCheats').checked = $('sCheats').checked; }
+// Saved values; when nothing is saved yet, the values stored in the world (then the game's defaults).
+async function loadRules(worldOnly) {
+  try {
+    const info = rulesInfo = await api('gamerules');
+    if (!$('rulesGroups').childElementCount) buildRules(info);
+    const saved = info.config.values || {}, world = info.world ? info.world.values : null;
+    if (worldOnly) {
+      if (!world) { $('rulesSrc').textContent = 'No world has been hosted yet, so there are no stored values.'; return; }
+      setRuleValues(world); $('rulesSrc').textContent = `Game rules as stored in world '${info.world.folder}' (not saved yet).`; return;
+    }
+    if (Object.keys(saved).length) { setRuleValues({ ...info.defaults, ...saved }); $('rulesSrc').textContent = 'Saved values.'; }
+    else { setRuleValues({ ...info.defaults, ...(world || {}) }); $('rulesSrc').textContent = world ? `Game rules as stored in world '${info.world.folder}'; the switches at the game's values.` : "The game's defaults."; }
+    $('sRules').checked = !!info.config.enabled; $('sRulesLive').value = String(info.config.live);
+    showRules();
+  } catch (e) { $('rulesSrc').textContent = 'Could not load the game rules: ' + e.message; }
+}
+$('sRules').addEventListener('change', showRules);
+$('sCheats').addEventListener('change', () => { if ($('grCheats')) $('grCheats').checked = $('sCheats').checked; });
+$('sRulesLive').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/[^01]/g, '').slice(0, 1); });
+$('bRulesDefaults').onclick = () => { if (!rulesInfo) return; setRuleValues(rulesInfo.defaults); $('rulesSrc').textContent = "The game's defaults (not saved yet)."; };
+$('bRulesWorld').onclick = () => loadRules(true);
+
+// The port field belongs to "send twice": shown only while it is ticked.
+function showTwicePort() { $('twicePortBox').style.display = $('sRedundant').checked ? '' : 'none'; }
+$('sRedundant').addEventListener('change', showTwicePort);
+async function loadConfig() {
+  const c = await api('config');
+  $('sMode').value = c.lanGamemode; $('sDiff').value = c.difficulty; $('sView').value = c.viewDistance; $('sOwner').value = c.ownerName;
+  $('sLanName').value = c.lanWorldName || ''; $('sCheats').checked = !!c.lanCheats; $('sHidden').checked = !!c.hidden; $('sRedundant').checked = !!c.redundantSend; $('sRelays').value = c.relays.join('\n');
+  $('sRedPort').value = c.redundantPort ?? ''; showTwicePort();
+  $('sMultiCore').checked = !!c.multiCore;
+  $('sLimit').value = c.playerLimit || '';
+  conInfo(c.ops || [], !!c.lanCheats);
+  $('relayWarn').textContent = (c.relayWarnings || []).join(' · ');
+  await loadRules();
+}
+
+const act = (btn, fn, el = 'hostMsg') => async () => {
+  btn.disabled = true; msg(el, 'Working…');
+  try { const m = await fn(); msg(el, typeof m === 'string' ? m : ''); } catch (e) { msg(el, e.message, true); }
+  await refreshStatus(); await refreshWorlds();
+};
+$('bHost').onclick = act($('bHost'), () => post('start', { folder: selected }), 'worldMsg');
+$('bStart').onclick = act($('bStart'), () => selected ? post('start', { folder: selected }) : post('restart'));
+$('bStop').onclick = act($('bStop'), async () => { msg('hostMsg', 'Stopping: saving the world and disconnecting players…'); await post('stop'); });
+$('bRestart').onclick = act($('bRestart'), () => post('restart'));
+$('bSave').onclick = act($('bSave'), () => post('save'));
+// Pre-generate: the panel with radius and speed (and Resume / Discard for an unfinished job); while
+// a pre-generation runs, the button stops it.
+let pgRunning = false, pgWaiting = null;
+function pregenButton(s, live) {
+  pgRunning = !!(live && s.pregen && s.pregen.running); pgWaiting = live ? s.pregenWaiting || null : null;
+  const b = $('bPregen');
+  b.textContent = pgRunning ? 'Stop pre-generation' : pgWaiting ? 'Pre-generate (1 unfinished)' : 'Pre-generate';
+  b.className = pgRunning ? 'danger' : '';
+  b.disabled = !live;
+  $('bPgStart').disabled = $('bPgResume').disabled = $('bPgDiscard').disabled = !live;   // act() leaves them disabled
+  if (!live || pgRunning) showPgBox(false);
+  $('pgWait').hidden = $('bPgResume').hidden = $('bPgDiscard').hidden = !pgWaiting;
+  if (pgWaiting) $('pgWait').textContent = `An unfinished pre-generation is waiting: ${pgWaiting.radius} blocks, ring ${pgWaiting.ring} of ${pgWaiting.rings}, at up to ${pgWaiting.rate} chunks/s. Resume continues it; Start begins a new one with the values here instead.`;
+}
+function showPgBox(on) {
+  $('pgBox').hidden = !on; $('bPregen').setAttribute('aria-expanded', String(on));
+  if (on && pgWaiting) { $('pgRadius').value = pgWaiting.radius; $('pgRate').value = pgWaiting.rate; }
+  if (on) $('pgRadius').focus();
+}
+$('bPregen').onclick = () => {
+  if (!pgRunning) return showPgBox($('pgBox').hidden);
+  act($('bPregen'), async () => (await post('pregen', { action: 'stop' })).lines[0])();
+};
+$('bPgCancel').onclick = () => showPgBox(false);
+$('bPgStart').onclick = act($('bPgStart'), async () => {
+  const radius = Number($('pgRadius').value), rate = Number($('pgRate').value);
+  if (!Number.isInteger(radius) || radius < 16 || radius > 4000) throw new Error('Radius: a whole number of blocks from 16 to 4000.');
+  if (!(rate >= 0.5 && rate <= 50)) throw new Error('Speed: 0.5 to 50 chunks per second.');
+  const r = await post('pregen', { action: 'start', radius, rate }); showPgBox(false); return r.lines[0];
+});
+$('bPgResume').onclick = act($('bPgResume'), async () => { const r = await post('pregen', { action: 'resume' }); showPgBox(false); return r.lines[0]; });
+$('bPgDiscard').onclick = act($('bPgDiscard'), async () => { const r = await post('pregen', { action: 'stop' }); showPgBox(false); return r.lines[0]; });
+$('bCreate').onclick = act($('bCreate'), () => post('create', { name: $('cName').value, seed: $('cSeed').value, gamemode: +$('cMode').value, worldType: +$('cType').value, structures: $('cStruct').checked, bonusChest: $('cBonus').checked, cheats: $('cCheats').checked, hardcore: $('cHard').checked }), 'worldMsg');
+$('bImport').onclick = act($('bImport'), async () => {
+  const f = $('iFile').files[0]; if (!f) throw new Error('Choose a .epk or .zip file first');
+  const fmt = /\.zip$/i.test(f.name) ? 'mca' : 'epk';
+  const r = await fetch(`/api/import?format=${fmt}&name=${encodeURIComponent($('iName').value || f.name)}`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: f });
+  const j = await r.json(); if (!r.ok || j.error) throw new Error(j.error);
+  msg('worldMsg', 'Importing in the background; the world appears in the list when done.');
+}, 'worldMsg');
+$('bExpEpk').onclick = act($('bExpEpk'), async () => { await post('export', { folder: selected, format: 'epk' }); msg('worldMsg', 'Exporting… the download link appears below when done.'); }, 'worldMsg');
+$('bExpZip').onclick = act($('bExpZip'), async () => { await post('export', { folder: selected, format: 'mca' }); msg('worldMsg', 'Exporting… the download link appears below when done.'); }, 'worldMsg');
+// Worlds: Rename and Delete (the selected world), the deleted worlds (Restore, Delete permanently). Only while no world
+// runs (src/control.js, src/world-admin.js); deleting asks for the world's name typed again.
+let trashCache = [], purgeId = null;
+const selWorld = () => worldsCache.find((w) => w.folder === selected) || null;
+const typedName = (v, folder, name) => { const t = v.trim(); return !!t && (t === folder || t === String(name || '').trim()); };
+function showWorldBox(which) { $('renameBox').hidden = which !== 'rename'; $('deleteBox').hidden = which !== 'delete'; }
+const wAct = (btn, fn) => async () => {
+  btn.disabled = true; msg('worldMsg', 'Working…');
+  try { msg('worldMsg', await fn()); } catch (e) { msg('worldMsg', e.message, true); }
+  btn.disabled = false; await refreshStatus(); await refreshWorlds();
+};
+$('bRename').onclick = () => {
+  const w = selWorld(); if (!w) return;
+  if (!$('renameBox').hidden) return showWorldBox(null);
+  $('rnOld').textContent = w.name || w.folder; $('rnName').value = w.name || w.folder; showWorldBox('rename'); $('rnName').focus(); $('rnName').select();
+};
+$('bRnCancel').onclick = () => showWorldBox(null);
+$('bRnOk').onclick = wAct($('bRnOk'), async () => {
+  const w = selWorld(); if (!w) throw new Error('Select a world first.');
+  const r = await post('rename', { folder: w.folder, name: $('rnName').value });
+  showWorldBox(null); selected = r.folder; $('selInfo').textContent = 'Selected: ' + r.name;
+  if (r.unchanged) return `'${r.name}' already has that name.`;
+  return `Renamed '${r.previous}' to '${r.name}'.` + (r.name !== r.typed ? ` ('${r.typed}' is another world's name, or has characters a folder cannot have.)` : '') + (r.autostart ? ' ' + r.autostart + '.' : '');
+});
+$('rnName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('bRnOk').click(); } });
+$('bDelete').onclick = () => {
+  const w = selWorld(); if (!w) return;
+  if (!$('deleteBox').hidden) return showWorldBox(null);
+  $('dlName').textContent = w.name || w.folder; $('dlConfirm').value = ''; $('bDlOk').disabled = true; showWorldBox('delete'); $('dlConfirm').focus();
+};
+$('dlConfirm').addEventListener('input', () => { const w = selWorld(); $('bDlOk').disabled = !w || !typedName($('dlConfirm').value, w.folder, w.name); });
+$('bDlCancel').onclick = () => showWorldBox(null);
+$('bDlOk').onclick = wAct($('bDlOk'), async () => {
+  const w = selWorld(); if (!w) throw new Error('Select a world first.');
+  const r = await post('delete', { folder: w.folder, confirm: $('dlConfirm').value });
+  showWorldBox(null); selected = null; $('selInfo').textContent = '';
+  return `'${r.name}' moved to Deleted worlds, where it can be restored.${r.pregenDropped ? ' Its waiting pre-generation was dropped.' : ''}`;
+});
+async function refreshTrash() {
+  try { trashCache = await api('deleted'); } catch { return; }
+  $('trashBox').hidden = !trashCache.length; $('trashN').textContent = trashCache.length;
+  const off = lastStatus && lastStatus.running ? ' disabled title="Only while no world runs"' : '';
+  const html = trashCache.map((t) => `<tr><td>${esc(t.name || t.folder)}</td><td class="small muted">${esc(t.folder)}</td><td>${ago(t.deletedAt)}</td><td class="small">${fmtBytes(t.bytes)} · ${t.files} files</td>` +
+    `<td style="white-space:nowrap"><button data-restore="${esc(t.id)}"${off}>Restore</button> <button class="danger" data-purge="${esc(t.id)}"${off}>Delete permanently</button></td></tr>`).join('');
+  if ($('trash').dataset.html !== html) { $('trash').dataset.html = html; $('trash').innerHTML = html; }
+  if (purgeId && (off || !trashCache.some((t) => t.id === purgeId))) { purgeId = null; $('purgeBox').hidden = true; }
+}
+$('trash').addEventListener('click', (e) => {
+  const r = e.target.closest('button[data-restore]'), p = e.target.closest('button[data-purge]');
+  if (r) wAct(r, async () => { const x = await post('restore', { id: r.dataset.restore }); return `Restored into folder '${x.folder}'${x.movedFrom ? ` (its old folder '${x.movedFrom}' is in use)` : ''}.`; })();
+  if (p) {
+    const t = trashCache.find((x) => x.id === p.dataset.purge); if (!t) return;
+    purgeId = t.id; $('purgeName').textContent = t.name || t.folder; $('purgeConfirm').value = ''; $('bPurgeOk').disabled = true; $('purgeBox').hidden = false; $('purgeConfirm').focus();
+  }
+});
+$('purgeConfirm').addEventListener('input', () => { const t = trashCache.find((x) => x.id === purgeId); $('bPurgeOk').disabled = !t || !typedName($('purgeConfirm').value, t.folder, t.name); });
+$('bPurgeCancel').onclick = () => { purgeId = null; $('purgeBox').hidden = true; };
+$('bPurgeOk').onclick = wAct($('bPurgeOk'), async () => {
+  const t = trashCache.find((x) => x.id === purgeId); if (!t) throw new Error('Choose a deleted world first.');
+  const r = await post('purge', { id: t.id, confirm: $('purgeConfirm').value });
+  purgeId = null; $('purgeBox').hidden = true;
+  return `'${t.name || t.folder}' deleted permanently (${r.files} files).`;
+});
+$('bCfg').onclick = async () => {
+  try {
+    const rp = $('sRedPort');
+    if (rp.validity.badInput) { $('cfgMsg').textContent = 'UDP port for "send twice": enter a number from 1024 to 65535, or leave it empty.'; return; }
+    const redundantPort = rp.value.trim() === '' ? null : Number(rp.value);
+    const lim = $('sLimit');
+    if (lim.validity.badInput || (lim.value.trim() !== '' && !(Number.isInteger(Number(lim.value)) && +lim.value >= 1 && +lim.value <= 1000))) { $('cfgMsg').textContent = 'Player limit: enter a whole number from 1 to 1000, or leave it empty for no limit.'; return; }
+    const playerLimit = lim.value.trim() === '' ? 0 : Number(lim.value);
+    const extra = {};
+    if (rulesInfo) {
+      const live = $('sRulesLive').value.trim();
+      if (live !== '1' && live !== '0') { $('cfgMsg').textContent = 'Game Rules: type 1 (apply at once) or 0 (apply at the next Start/Restart) in the box next to the checkbox.'; return; }
+      extra.gameRules = { enabled: $('sRules').checked, live: +live, values: ruleValues() };
+    }
+    const r = await post('config', { ...extra, redundantPort, playerLimit, lanGamemode: +$('sMode').value, difficulty: +$('sDiff').value, viewDistance: Math.max(2, Math.min(16, +$('sView').value || 4)), ownerName: $('sOwner').value.trim() || 'HeadlessHost', lanWorldName: $('sLanName').value.trim(), lanCheats: $('sCheats').checked, hidden: $('sHidden').checked, redundantSend: $('sRedundant').checked, multiCore: $('sMultiCore').checked, relays: $('sRelays').value.split('\n') });
+    const ra = r.relaysApplied, sa = r.settingsApplied;
+    const g = sa && sa.gameRules;
+    const rulesMsg = !g ? (extra.gameRules && extra.gameRules.enabled && !(sa && sa.applied) ? ' Game rules are set when the world starts.' : '')
+      : g.error ? ` Game rules NOT applied: ${g.error}.`
+      : g.pending ? ' Game rules saved: they apply at the next Start/Restart.'
+      : g.off ? " Game rules: PvP, flying, idle kick and command blocks are back to the game's values; the game rules stay as they are in the world."
+      : g.applied ? ` Game rules applied now${g.changed && g.changed.length ? ` (${g.changed.length} changed)` : ''}${g.failed && g.failed.length ? '; the game refused ' + g.failed.join(', ') : ''}.` : '';
+    $('cfgMsg').textContent = 'Saved.' + (ra && ra.applied ? ' Relay list applied to the running world.' : '') + (sa && sa.applied ? ` Applied now: LAN game mode ${modes[sa.lanGamemode] || ''} for players who join or respawn; cheats ${sa.lanCheats ? 'on for every player' : 'off'}; send twice ${sa.redundantSend ? `on (${sa.redundantPort ? 'UDP port ' + sa.redundantPort : 'automatic port'})` : 'off'}; player limit ${sa.playerLimit || 'off'}.${sa.multiCore ? ' Multi-core mode ' + mcShort(sa.multiCore) + '.' : ''}` : '') + rulesMsg;
+    await loadConfig(); $('relayWarn').textContent = [...(r.relayWarnings || []), ...((ra && ra.warnings) || [])].join(' · ');
+    loadOptions(true);
+  } catch (e) { $('cfgMsg').textContent = e.message; }
+};
+
+// Donation message (src/donation.js; GET /api/donation/settings, POST /api/donation and /api/donation/send; the players'
+// page: public/donate.js). The previews follow the fields as they are typed; Save keeps them.
+const DON_FIELDS = { message: 'dMsg', goal: 'dGoal', raised: 'dRaised', currency: 'dCur', goalFor: 'dFor', address: 'dAddr', network: 'dNet', lagTps: 'dTps', cooldownMinutes: 'dCool' };
+let donSaved = null, donDefaults = null;
+function donForm() {
+  const v = { enabled: $('dOn').checked };
+  for (const [k, id] of Object.entries(DON_FIELDS)) { const el = $(id); v[k] = el.type === 'number' ? (el.value.trim() === '' || el.validity.badInput ? null : Number(el.value)) : el.value; }
+  return v;
+}
+function donFill(d) { $('dOn').checked = !!d.enabled; for (const [k, id] of Object.entries(DON_FIELDS)) $(id).value = d[k] ?? ''; donChanged(); }
+const donNum = (n) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100));
+function donGoal(d) {   // (as donation.js goalText)
+  if (!(d.goal > 0)) return '';
+  const cur = d.currency ? ' ' + d.currency : '', what = d.goalFor ? ' for ' + d.goalFor : '';
+  return d.raised > 0 ? `${donNum(d.raised)} of ${donNum(d.goal)}${cur} raised${what}` : `Goal: ${donNum(d.goal)}${cur}${what}`;
+}
+function donPreview() {
+  const d = donForm(), lag = !!(lastStatus && lastStatus.running && lastStatus.donation && lastStatus.donation.lag), goal = donGoal(d);
+  const pct = d.goal > 0 ? Math.max(0, Math.min(100, ((d.raised || 0) / d.goal) * 100)) : 0;
+  $('dOnV').textContent = d.enabled ? 'ON' : 'OFF';
+  $('dChat').innerHTML = '<span class="mc-gold">Support this server</span>\n<span class="mc-gray">' + (lag ? 'The server is running slow right now. ' : '') + esc(d.message) + '</span>' +
+    (goal ? '\n<span class="mc-yellow">' + esc(goal) + '</span>' : '') +
+    '\n<span class="mc-gray">Send' + (d.network ? ' ' + esc(d.network) : '') + ' to: </span><span class="mc-aqua" title="Players click it, then &quot;Copy to Clipboard&quot;">' + esc(d.address) + '</span>' +
+    '\n<span class="mc-dgray">(click the address, then Copy to Clipboard)</span>';
+  $('dCard').innerHTML = '<div class="h"><span>&#9829;</span> Support this server</div>' + (lag ? '<div class="lagn">The server is running slow right now. Your support helps make it faster.</div>' : '') +
+    '<p class="m">' + esc(d.message) + '</p>' + (goal ? '<div class="g">' + esc(goal) + '<div class="bar"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' : '') +
+    '<div class="to">Send' + (d.network ? ' <b>' + esc(d.network) + '</b>' : '') + ' to:</div><code>' + esc(d.address) + '</code>';
+}
+function donChanged() {
+  donPreview();
+  const dirty = donSaved && JSON.stringify(donForm()) !== JSON.stringify(donSaved);
+  if (dirty) msg('donMsg', 'Not saved yet.');
+  else if ($('donMsg').textContent === 'Not saved yet.') msg('donMsg', '');
+}
+// the measured speed and the last message (status: donation), and Send only while a world runs with the message on
+function donNow() {
+  const s = lastStatus, d = s && s.running ? s.donation : null;
+  $('dNow').textContent = !s || !s.running ? 'The world is not running.' : !d || !d.enabled ? '' : d.tps == null ? 'Measuring the server speed…'
+    : `Now ${d.tps} ticks per second${d.lag ? ' (lagging)' : ''}${d.lastSentAt ? ' · last sent ' + ago(d.lastSentAt) : ''}`;
+  $('bDonSend').disabled = !(s && s.running) || !(donSaved && donSaved.enabled);
+}
+async function loadDonation() {
+  try {
+    const r = await api('donation/settings');
+    donSaved = r.settings; donDefaults = r.defaults; donFill(r.settings);
+    if (r.fileErrors && r.fileErrors.length) msg('donMsg', 'data/config.json: ' + r.fileErrors.join('; ') + ' (the defaults are shown for those)', true);
+    donNow();
+  } catch (e) { msg('donMsg', 'Could not load the donation settings: ' + e.message, true); }
+}
+for (const id of ['dOn', ...Object.values(DON_FIELDS)]) $(id).addEventListener('input', donChanged);
+$('dOn').addEventListener('change', donChanged);
+$('bDonDef').onclick = () => { if (donDefaults) { donFill({ ...donDefaults, enabled: $('dOn').checked }); msg('donMsg', 'Defaults put in the fields: Save keeps them.'); } };
+$('bDon').onclick = async () => {
+  $('bDon').disabled = true; msg('donMsg', 'Saving…');
+  try {
+    const r = await post('donation', donForm());
+    donSaved = r.settings; donFill(r.settings);
+    msg('donMsg', 'Saved' + (r.settings.enabled ? '. On' : '. Off') + (r.applied ? ', for the running world now.' : ': the world uses it when it runs.'));
+  } catch (e) { msg('donMsg', 'Not saved: ' + e.message, true); }
+  $('bDon').disabled = false; donNow();
+};
+$('bDonSend').onclick = async () => {
+  $('bDonSend').disabled = true; msg('donMsg', 'Sending…');
+  try { const r = await post('donation/send'); msg('donMsg', `Sent to the chat (${r.players} player${r.players === 1 ? '' : 's'} online).`); } catch (e) { msg('donMsg', 'Not sent: ' + e.message, true); }
+  donNow();
+};
+
+// Option Manual (src/options.js, GET /api/options): the settings of data/config.json that have no control elsewhere on
+// this page, each with a control for its type and saved on its own (POST /api/options changes only that key of the file).
+// Nothing is written until its Save is pressed.
+const OPT_TAG = { live: ['live', 'applies at once', 'a running world takes it now'], restart: ['restart', 'restart the world', 'used from the world\'s next Start/Restart'], ui: ['ui', 'restart the web page server', 'used when the web page server starts again'] };
+const optRows = new Map(), optSince = new Map();   // optSince: key -> the running host's start time when it was saved
+const optShown = (list) => list.filter((o) => o.control !== 'elsewhere');   // (the others: Settings, Game Rules, the Console)
+let optFileError = null, optAll = new Map();   // optAll: every setting listed, the ones changed elsewhere too ("works with")
+const optSame = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+function optText(o, v) {
+  if (v === null || v === undefined) return o.nullLabel || 'none';
+  if (o.type === 'boolean') return v === true ? 'ON' : v === false ? 'OFF' : JSON.stringify(v);
+  if (o.type === 'enum') { const c = o.choices.find((x) => x[0] === v); return c ? c[1] : JSON.stringify(v); }
+  if (o.type === 'string') return v === '' ? '(empty)' : typeof v === 'string' ? v : JSON.stringify(v);
+  return typeof v === 'number' ? String(v) : JSON.stringify(v);
+}
+// The control's value as the host takes it: { value } or { error } (the rules of options.js validate; the server checks again).
+function optRead(o, el) {
+  if (o.type === 'boolean') return { value: el.checked };
+  if (o.type === 'enum') { const c = o.choices.find((x) => JSON.stringify(x[0]) === el.value); return c ? { value: c[0] } : { error: 'choose one of the values' }; }
+  if (o.type === 'integer') {
+    const t = el.value.trim(), range = `a whole number from ${o.min} to ${o.max}${o.not ? `, not ${o.not[0]}-${o.not[1]}` : ''}${o.nullable ? `, or empty for ${o.nullLabel}` : ''}`;
+    if (t === '' && !el.validity.badInput) return o.nullable ? { value: null } : { error: range };
+    const n = Number(t);
+    if (el.validity.badInput || !Number.isInteger(n) || n < o.min || n > o.max || (o.not && n >= o.not[0] && n <= o.not[1])) return { error: range };
+    return { value: n };
+  }
+  if (o.type === 'string') {
+    const v = el.value.trim();
+    if (v.length < o.minLength || v.length > o.maxLength) return { error: `${o.minLength ? o.minLength + ' to ' : 'at most '}${o.maxLength} characters` };
+    if (/[\u0000-\u001f\u007f]/.test(v)) return { error: 'no control characters' };
+    return { value: v };
+  }
+  return { error: 'cannot be set here' };
+}
+function optSet(r, v) {
+  const o = r.o, el = r.el;
+  if (o.control === 'toggle') el.checked = v === true;
+  else if (o.control === 'select') el.value = JSON.stringify(v);   // (a value that is not a choice: nothing selected)
+  else if (o.control === 'number') el.value = typeof v === 'number' ? String(v) : '';
+  else if (o.control === 'text') el.value = typeof v === 'string' ? v : '';
+}
+function optRowHtml(o) {
+  const id = esc('opt-' + o.key), tag = OPT_TAG[o.applies], aria = `aria-label="${esc(o.label)}"`;
+  const ctl = o.control === 'toggle' ? `<label class="sw"><input type="checkbox" role="switch" id="${id}" ${aria}><span class="t"></span><b class="v">OFF</b></label>`
+    : o.control === 'select' ? `<select id="${id}" ${aria}>${o.choices.map((c) => `<option value="${esc(JSON.stringify(c[0]))}">${esc(c[1])}</option>`).join('')}</select>`
+    : o.control === 'number' ? `<input type="number" id="${id}" ${aria} min="${o.min}" max="${o.max}" step="1" inputmode="numeric"${o.nullable ? ` placeholder="${esc(o.nullLabel)}" title="Empty: ${esc(o.nullLabel)}"` : ''}>`
+    : `<input type="text" id="${id}" ${aria} maxlength="${o.maxLength}" spellcheck="false" autocomplete="off"${o.minLength ? '' : ' placeholder="(empty)"'}>`;
+  return `<div class="opt" data-key="${esc(o.key)}"><div>` +
+    `<div><span class="n">${esc(o.label)}</span> <code>${esc(o.key)}</code>${tag ? ` <span class="tag ${tag[0]}">${tag[1]}</span>` : ''}${o.needs ? ' <span class="tag" data-needs></span>' : ''}</div>` +
+    `<div class="d">${esc(o.text)}</div><div class="small muted" data-info></div><div class="ferr" data-ferr></div></div>` +
+    `<div class="side"><div class="ctl">${ctl}<button type="button" class="primary" data-save>Save</button><button type="button" data-def title="Put the default value in the control (Save writes it)">Default</button></div>` +
+    `<div class="err" data-err></div><div class="omsg" data-msg></div></div></div>`;
+}
+function optBuild(list) {
+  optRows.clear();
+  const shown = optShown(list), groups = [...new Set(shown.map((o) => o.group))];
+  $('optList').innerHTML = groups.map((g) => `<div class="og"><h3>${esc(g)}</h3>${shown.filter((o) => o.group === g).map(optRowHtml).join('')}</div>`).join('');
+  for (const o of shown) {
+    const row = $('optList').querySelector(`.opt[data-key="${CSS.escape(o.key)}"]`), q = (s) => row.querySelector(s);
+    const r = { o, row, el: q('input,select'), save: q('[data-save]'), def: q('[data-def]'), err: q('[data-err]'), msg: q('[data-msg]'), info: q('[data-info]'), ferr: q('[data-ferr]'), v: q('.v'), needs: q('[data-needs]') };
+    optRows.set(o.key, r);
+    for (const ev of ['input', 'change']) r.el.addEventListener(ev, () => optCheck(o.key));
+    r.el.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !r.save.disabled) { e.preventDefault(); optSave(o.key); } });
+    r.save.onclick = () => optSave(o.key);
+    r.def.onclick = () => { optSet(r, r.o.default); optCheck(o.key); r.el.focus(); };
+    optFill(o.key, true);
+  }
+}
+// The row's text from the saved value (and, with reset, its control).
+function optFill(key, reset) {
+  const r = optRows.get(key), o = r.o;
+  r.info.textContent = `Default: ${optText(o, o.default)} · ` + (o.inFile ? `data/config.json: ${o.fileError ? JSON.stringify(o.value) : optText(o, o.value)}` : 'not in data/config.json: the default applies') +
+    (o.fileNote ? ` (${o.fileNote})` : '') + (o.doc ? ` · README: ${o.doc}` : '');
+  r.ferr.textContent = o.fileError ? `data/config.json has a value the host does not accept (${o.fileError}). Save a valid value to replace it.` : '';
+  if (reset) optSet(r, o.value);
+  optCheck(key);
+}
+function optCheck(key) {
+  const r = optRows.get(key), o = r.o, v = optRead(o, r.el), changed = !!v.error || !optSame(v.value, o.value);
+  r.err.textContent = v.error ? `${o.label}: ${v.error}` : '';
+  r.el.setAttribute('aria-invalid', v.error ? 'true' : 'false');
+  r.save.disabled = !!v.error || !!optFileError || !(changed || o.fileError || o.fileNote);
+  r.def.disabled = !v.error && optSame(v.value, o.default);
+  if (r.v) r.v.textContent = r.el.checked ? 'ON' : 'OFF';
+  r.row.classList.toggle('changed', changed);
+}
+// "works with": shown, and marked when that setting is off now (nothing is changed by itself).
+function optNeeds() {
+  for (const r of optRows.values()) {
+    if (!r.needs) continue;
+    const n = optAll.get(r.o.needs), v = n && n.value, on = typeof v === 'number' ? v > 0 : v === true;
+    r.needs.innerHTML = `works with <code>${esc(r.o.needs)}</code>${on ? '' : ' (off now)'}`;
+    r.needs.className = 'tag' + (on ? '' : ' restart');
+    r.needs.title = on ? '' : `${r.o.needs} is off in data/config.json: this setting has no effect until it is on.`;
+  }
+}
+function optSummary(list) {
+  const shown = optShown(list), inFile = shown.filter((o) => o.inFile).length, bad = shown.filter((o) => o.fileError).length;
+  const legend = Object.keys(OPT_TAG).filter((a) => shown.some((o) => o.applies === a)).map((a) => `<span class="tag ${OPT_TAG[a][0]}">${OPT_TAG[a][1]}</span> ${OPT_TAG[a][2]}`).join(' · ');
+  $('optSum').innerHTML = `${shown.length} settings · ${inFile} in data/config.json, the others at their defaults${bad ? ` · <span style="color:var(--bad)">${bad} with a value the host does not accept</span>` : ''}` +
+    (optFileError ? `<div style="color:var(--bad)">data/config.json cannot be read: ${esc(optFileError)}. The host uses the defaults; nothing can be saved here until the file is fixed.</div>` : '') +
+    `<div>Each Save changes only that setting in data/config.json. ${legend}. The settings with a control of their own on this page (Settings, its Game Rules, the Console's OP list) are changed there.</div>`;
+}
+// After a save or a reload: rows with changes not saved keep them (except the one just saved).
+function optUpdate(list, saved) {
+  optAll = new Map(list.map((o) => [o.key, o]));
+  for (const o of list) {
+    const r = optRows.get(o.key); if (!r) continue;
+    const keep = o.key !== saved && r.row.classList.contains('changed');
+    r.o = o; optFill(o.key, !keep);
+  }
+  optNeeds(); optSummary(list);
+}
+// Restart settings saved while the world runs, until the world starts again.
+function optPending() {
+  const s = lastStatus, keys = [];
+  for (const [k, t] of optSince) { if (s && s.running && s.startedAt === t) keys.push(k); else if (s) optSince.delete(k); }
+  const el = $('optPending'); el.hidden = !keys.length;
+  el.innerHTML = keys.length ? `Saved, waiting for the world's next start: ${keys.map((k) => `<code>${esc(k)}</code>`).join(', ')}. The running world keeps its old values until it starts again (Restart, under Host).` : '';
+}
+function optFilter() {
+  const q = $('optFilter').value.trim().toLowerCase();
+  for (const r of optRows.values()) r.row.hidden = !!q && ![r.o.key, r.o.label, r.o.text, r.o.group].some((s) => s.toLowerCase().includes(q));
+  for (const g of $('optList').querySelectorAll('.og')) g.hidden = ![...g.querySelectorAll('.opt')].some((x) => !x.hidden);
+}
+async function optSave(key) {
+  const r = optRows.get(key), v = optRead(r.o, r.el);
+  if (v.error) return optCheck(key);
+  r.save.disabled = true; r.msg.className = 'omsg muted'; r.msg.textContent = 'Saving…';
+  try {
+    const res = await post('options', { key, value: v.value }), a = res.applied;
+    optUpdate(res.options, key);
+    let t = 'Saved.';
+    if (res.applies === 'live') t += a && a.applied ? ' Applied to the running world now.' : a && a.reason ? ` Not applied now: ${a.reason}.` : '';
+    else if (res.applies === 'restart') {
+      if (lastStatus && lastStatus.running) { optSince.set(key, lastStatus.startedAt); t += ' The running world keeps the old value until its next Start/Restart.'; }
+      else t += ' The world uses it from its next start.';
+    } else if (res.applies === 'ui') t += ' The web page server uses it from its next start (node cli.js ui); the PORT environment variable, when set, is used instead.';
+    r.msg.className = 'omsg ok'; r.msg.textContent = t;
+    optPending();
+  } catch (e) { r.msg.className = 'omsg err'; r.msg.textContent = 'Not saved: ' + e.message; optCheck(key); }
+}
+async function loadOptions(keep) {
+  let r;
+  try { r = await api('options'); } catch (e) { $('optSum').textContent = 'Could not load the settings: ' + e.message; return; }
+  optFileError = r.error || null; optAll = new Map(r.options.map((o) => [o.key, o]));
+  if (keep && optRows.size) optUpdate(r.options, null); else { optBuild(r.options); optNeeds(); optSummary(r.options); }
+  optFilter(); optPending();
+}
+$('optFilter').addEventListener('input', optFilter);
+$('bOptReload').onclick = () => loadOptions(false);
+
+loadConfig(); loadOptions(); loadDonation(); refreshStatus().then(refreshWorlds); refreshLogs();
+const pollStatus = once(refreshStatus), pollWorlds = once(refreshWorlds), pollExports = once(refreshExports);
+setInterval(pollStatus, 2000); setInterval(refreshLogs, 1500); setInterval(pollWorlds, 10000); pollExports(); setInterval(pollExports, 5000);
+</script>
+</body>
+</html>
