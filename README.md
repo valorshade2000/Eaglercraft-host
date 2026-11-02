@@ -1750,4 +1750,24 @@ TQqxb8H1QFghCMpV7eHMZEkBEoR8HNXSYC
 
 Send on the TRON network (TRC-20) only: coins sent to this address on another network can be lost.
 
+---
+
+**Trust Wallet**, TON network: TON or USDT (TON Jetton)
+
+```text
+UQAzaTcekoV0FsQlGlFpWvjToOIsTxWO9o3wip1y2NpCW3DZ
+```
+
+Send on the TON network only: coins sent to this address on another network can be lost.
+
+---
+
+**Trust Wallet**, Polygon network (Polygon PoS): POL or USDT
+
+```text
+0x8888495C96173811d2cfb5A6BF83b6e534fEB8a6
+```
+
+Send on the Polygon PoS network only: coins sent to this address on another network can be lost.
+
 **Thank you for your support!** ❤️
