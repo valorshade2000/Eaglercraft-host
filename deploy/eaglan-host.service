@@ -1,0 +1,38 @@
+# systemd unit for the headless Eaglercraft World LAN host.
+# Install:
+#   sudo useradd --system --home /opt/eaglan-host --shell /usr/sbin/nologin eaglan
+#   sudo cp -r eaglan-host /opt/ && cd /opt/eaglan-host && sudo npm ci --omit=dev
+#   sudo cp deploy/eaglan-host.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now eaglan-host
+# UI: http://127.0.0.1:8090/ (use an SSH tunnel or a reverse proxy with auth for remote access)
+[Unit]
+Description=Eaglercraft World LAN headless host
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=eaglan
+WorkingDirectory=/opt/eaglan-host
+ExecStart=/usr/bin/node cli.js ui
+Environment=NODE_ENV=production
+Environment=EAGLAN_DATA=/var/lib/eaglan-host
+Environment=BIND=127.0.0.1
+Environment=PORT=8090
+Environment=EAGLAN_AUTOSTART=last
+Environment=EAGLAN_STOP_HOST_ON_EXIT=1
+StateDirectory=eaglan-host
+# SIGTERM goes to the UI server only; it asks the host to save and exit, then exits itself.
+KillMode=mixed
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=5
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/eaglan-host
+
+[Install]
+WantedBy=multi-user.target
